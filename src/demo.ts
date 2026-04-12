@@ -1,5 +1,4 @@
-import type { Classroom } from '../types.js';
-import { nanoid } from 'nanoid';
+import type { Classroom } from './types.js';
 
 /**
  * Demo: Generate a course about teach-me-cli itself
@@ -8,7 +7,7 @@ import { nanoid } from 'nanoid';
 
 export function generateTeachMeCliDemoCourse(): Classroom {
   return {
-    id: `course_${nanoid()}`,
+    id: `course_${Date.now()}`,
     title: 'teach-me-cli 課程生成系統的原理與架構',
     topic: 'teach-me-cli 課程生成系統',
     description: '學習如何用 teach-me-cli 一鍵生成專業課程。涵蓋 4 階段編排、LangGraph 原理、OmniVoice 配音、多格式導出。',
@@ -315,6 +314,7 @@ export function generateTeachMeCliDemoCourse(): Classroom {
         ],
         narration:
           '現在讓我們通過小測驗來檢驗一下你的學習成果。我會問三個問題，考驗你對 teach-me-cli 原理的理解。',
+        actions: [],
         duration: 120,
       },
 

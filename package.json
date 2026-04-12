@@ -25,6 +25,7 @@
   "author": "Jimmy with 🦊",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.88.0",
     "@langchain/core": "^1.1.16",
     "@langchain/langgraph": "^1.1.1",
     "@types/node": "^20.0.0",
@@ -35,8 +36,9 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@types/yargs": "^17.0.35",
+    "tsx": "^4.7.0",
     "typescript": "^5.3.3",
-    "vitest": "^1.0.0",
-    "tsx": "^4.7.0"
+    "vitest": "^1.0.0"
   }
 }

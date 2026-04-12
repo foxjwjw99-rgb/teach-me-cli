@@ -26,7 +26,8 @@ export async function generatePPTX(
   const prs = new PptxGenJS();
   prs.defineLayout({
     name: 'LAYOUT1',
-    master: 'MASTER1',
+    width: SLIDE_WIDTH,
+    height: SLIDE_HEIGHT,
   });
 
   console.log(`Generating PPTX with ${classroom.scenes.length} slides...`);

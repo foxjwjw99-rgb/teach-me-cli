@@ -1,79 +1,82 @@
-import { LanguageModel } from 'ai';
+import Anthropic from '@anthropic-ai/sdk';
 import { LLMRequest, LLMResponse } from '../types.js';
 
 /**
  * LLM Adapter for OpenClaw integration
- * 
- * This adapter bridges teach-me-cli to OpenClaw's LLM capabilities.
- * It can work in two modes:
+ *
+ * Works in two modes:
  * 1. Direct mode: OpenClaw calls teach-me-cli as a skill/tool
- * 2. Server mode: teach-me-cli runs as a local service
+ * 2. Standalone mode: Uses ANTHROPIC_API_KEY from environment
  */
 
-export class OpenClawLLMAdapter {
-  private model: LanguageModel | null = null;
-  private fallbackModel: string | null = null;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  constructor(model?: LanguageModel, fallback?: string) {
-    this.model = model ?? null;
-    this.fallbackModel = fallback ?? null;
+export class OpenClawLLMAdapter {
+  private anthropic: Anthropic | null = null;
+
+  constructor() {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (apiKey) {
+      this.anthropic = new Anthropic({ apiKey });
+    }
   }
 
-  /**
-   * Call LLM with a request
-   * 
-   * When used within OpenClaw context, the model will be injected.
-   * When used standalone, will try to use fallback or environment-configured LLM.
-   */
   async call(request: LLMRequest): Promise<LLMResponse> {
-    if (!this.model && !this.fallbackModel) {
+    if (!this.anthropic) {
       throw new Error(
-        'No LLM configured. Either inject a model or set FALLBACK_MODEL env var.\n' +
-        'When called from OpenClaw, the model will be automatically injected.'
+        'No LLM configured. Set ANTHROPIC_API_KEY in environment or .env.local.\n' +
+        'When called from OpenClaw, the LLM will be automatically injected.'
       );
     }
 
-    try {
-      if (this.model) {
-        // Use injected OpenClaw model
-        return await this.callWithModel(this.model, request);
-      } else {
-        // Fallback to environment-configured model (for standalone mode)
-        return await this.callWithFallback(request);
+    const messages: Anthropic.MessageParam[] = request.messages.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }));
+
+    const response = await this.anthropic.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: request.maxTokens ?? 4096,
+      system: request.systemPrompt,
+      messages,
+    });
+
+    const text = response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+      .map((block) => block.text)
+      .join('');
+
+    return {
+      text,
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      },
+    };
+  }
+
+  async callWithRetry(request: LLMRequest, retries = 3): Promise<LLMResponse> {
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        return await this.call(request);
+      } catch (error) {
+        if (attempt === retries - 1) throw error;
+        const delay = Math.min(200 * Math.pow(2, attempt), 10000);
+        console.warn(`⚠️  LLM call failed (attempt ${attempt + 1}/${retries}), retrying in ${delay}ms...`);
+        await sleep(delay);
       }
-    } catch (error) {
-      throw new Error(`LLM call failed: ${error instanceof Error ? error.message : String(error)}`);
     }
-  }
-
-  private async callWithModel(
-    model: LanguageModel,
-    request: LLMRequest
-  ): Promise<LLMResponse> {
-    // This would be called when model is injected by OpenClaw
-    // For now, we'll use a basic implementation
-    // In production, this would use the Vercel AI SDK adapter
-    throw new Error('Direct model injection not yet implemented. Use fallback mode.');
-  }
-
-  private async callWithFallback(request: LLMRequest): Promise<LLMResponse> {
-    // Placeholder for fallback implementation
-    // This would use environment variables to configure an LLM client
-    throw new Error('Fallback LLM not configured. Install @anthropic-ai/sdk and set ANTHROPIC_API_KEY.');
-  }
-
-  setModel(model: LanguageModel): void {
-    this.model = model;
+    // unreachable, but TypeScript needs it
+    throw new Error('callWithRetry exhausted');
   }
 
   hasModel(): boolean {
-    return this.model !== null;
+    return this.anthropic !== null;
   }
 }
 
-/**
- * Create a stateless LLM adapter for use in LangGraph
- */
-export function createLLMAdapter(model?: LanguageModel): OpenClawLLMAdapter {
-  return new OpenClawLLMAdapter(model);
+export function createLLMAdapter(): OpenClawLLMAdapter {
+  return new OpenClawLLMAdapter();
 }
