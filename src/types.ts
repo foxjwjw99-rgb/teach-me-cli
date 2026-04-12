@@ -25,7 +25,7 @@ export type ActionType = z.infer<typeof ActionTypeSchema>;
 
 export const ActionSchema = z.object({
   type: ActionTypeSchema,
-  params: z.record(z.unknown()),
+  params: z.record(z.string(), z.unknown()),
   delay: z.number().optional(),
   duration: z.number().optional(),
 });

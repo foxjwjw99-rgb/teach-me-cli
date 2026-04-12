@@ -1,7 +1,19 @@
-import { execSync } from 'child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { exec } from 'child_process';
+import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import type { Config } from '../types.js';
+
+function execAsync(cmd: string): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    exec(cmd, { encoding: 'utf8' }, (error, stdout, stderr) => {
+      if (error) {
+        reject(Object.assign(error, { stdout, stderr }));
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
+  });
+}
 
 /**
  * OmniVoice TTS Generator
@@ -13,19 +25,17 @@ export async function generateNarrationWithOmniVoice(
   audioPath: string,
   config: Partial<Config> = {}
 ): Promise<string> {
-  const ovc = config.omnivoice || {};
-  
   // Ensure output directory exists
   const dir = dirname(audioPath);
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
 
-  const refAudio = ovc.refAudio || '/Users/huli/.openclaw/workspace/voice-clones/jimmy-current-clone-reference.wav';
-  const refText = ovc.refText || '这是现在我们学校流行的装饰品了。';
-  const instruct = ovc.instruct || 'female, very low pitch';
-  const speed = ovc.speed || 0.9;
-  const style = ovc.style || 
+  const refAudio = config.omnivoice?.refAudio || '/Users/huli/.openclaw/workspace/voice-clones/jimmy-current-clone-reference.wav';
+  const refText = config.omnivoice?.refText || '这是现在我们学校流行的装饰品了。';
+  const instruct = config.omnivoice?.instruct || 'female, very low pitch';
+  const speed = config.omnivoice?.speed || 0.9;
+  const style = config.omnivoice?.style ||
     '請用台灣國語的感覺說話，使用台灣繁體中文常用詞。不要香港口音，不要港式語調，不要粵語感。不要中國播報腔，不要兒化音。語氣自然、親切、口語，像台灣日常對話。';
 
   try {
@@ -45,9 +55,9 @@ export async function generateNarrationWithOmniVoice(
 
     console.log(`🎙️  Generating audio: ${audioPath}`);
     console.log(`   Text: ${narrationText.substring(0, 50)}...`);
-    
+
     try {
-      execSync(cmd, { stdio: 'pipe', encoding: 'utf8' });
+      await execAsync(cmd);
     } catch (error) {
       // Sometimes omnivoice returns non-zero but still generates file
       if (!existsSync(audioPath)) {
@@ -81,7 +91,7 @@ export async function generateCourseNarration(
   console.log('='.repeat(50));
 
   const results: Array<{ sceneId: string; audioFile: string; success: boolean }> = [];
-  const parallelCount = config.generation?.parallelScenes || 1;
+  const parallelCount = config.generation?.parallelScenes ?? 3;
 
   for (let i = 0; i < scenes.length; i += parallelCount) {
     const batch = scenes.slice(i, Math.min(i + parallelCount, scenes.length));

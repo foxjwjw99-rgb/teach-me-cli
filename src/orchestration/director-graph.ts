@@ -1,37 +1,34 @@
 import { Annotation, StateGraph, START, END } from '@langchain/langgraph';
+import pLimit from 'p-limit';
 import type { Scene, Classroom, GenerationProgress } from '../types.js';
 import { OpenClawLLMAdapter } from './llm-adapter.js';
 import { buildOutlinePrompt, buildContentPrompt, buildActionsPrompt } from './prompt-builder.js';
 
 // ============== State Definition ==============
 
-/**
- * Director Graph state for multi-stage course generation
- * Inspired by OpenMAIC's architecture but simplified for CLI usage
- */
 const CourseGeneratorState = Annotation.Root({
   // Input
   topic: Annotation<string>,
   content: Annotation<string>,
-  
+
   // Processing
   outline: Annotation<Scene[]>({
     reducer: (prev, update) => update ?? prev,
     default: () => [],
   }),
-  
+
   // Output
   classroom: Annotation<Classroom | null>({
     reducer: (prev, update) => update ?? prev,
     default: () => null,
   }),
-  
+
   // Metadata
   progress: Annotation<GenerationProgress[]>({
     reducer: (prev, update) => [...prev, ...update],
     default: () => [],
   }),
-  
+
   // Control
   shouldContinue: Annotation<boolean>,
 });
@@ -40,9 +37,6 @@ type CourseGeneratorStateType = typeof CourseGeneratorState.State;
 
 // ============== Nodes ==============
 
-/**
- * Stage 1: Parse input and prepare outline generation
- */
 async function initNode(state: CourseGeneratorStateType): Promise<Partial<CourseGeneratorStateType>> {
   console.log(`\n${'='.repeat(50)}`);
   console.log('🎓 Stage 1: Initializing Course Generation');
@@ -61,9 +55,6 @@ async function initNode(state: CourseGeneratorStateType): Promise<Partial<Course
   };
 }
 
-/**
- * Stage 2: Generate course outline using LLM
- */
 async function outlineNode(
   state: CourseGeneratorStateType,
   llmAdapter: OpenClawLLMAdapter
@@ -73,15 +64,14 @@ async function outlineNode(
   console.log('='.repeat(50));
 
   const prompt = buildOutlinePrompt(state.topic, state.content);
-  
+
   try {
-    const response = await llmAdapter.call({
+    const response = await llmAdapter.callWithRetry({
       messages: [{ role: 'user', content: prompt.userPrompt }],
       systemPrompt: prompt.systemPrompt,
       maxTokens: 4096,
     });
 
-    // Parse JSON response
     let outline: Scene[] = [];
     try {
       const text = response.text
@@ -111,65 +101,55 @@ async function outlineNode(
   }
 }
 
-/**
- * Stage 3: Generate detailed content for each scene
- */
 async function contentNode(
   state: CourseGeneratorStateType,
-  llmAdapter: OpenClawLLMAdapter
+  llmAdapter: OpenClawLLMAdapter,
+  concurrency: number
 ): Promise<Partial<CourseGeneratorStateType>> {
   console.log(`\n${'='.repeat(50)}`);
-  console.log('🎓 Stage 3: Generating Scene Content');
+  console.log(`🎓 Stage 3: Generating Scene Content (concurrency: ${concurrency})`);
   console.log('='.repeat(50));
 
   const scenes = state.outline;
-  const enrichedScenes: Scene[] = [];
+  const limit = pLimit(concurrency);
 
-  for (let i = 0; i < scenes.length; i++) {
-    const scene = scenes[i];
-    console.log(`\n📄 Processing scene ${i + 1}/${scenes.length}: ${scene.title}`);
+  const tasks = scenes.map((scene, i) =>
+    limit(async () => {
+      if (scene.type === 'quiz') {
+        console.log(`⏭️  Scene ${i + 1}/${scenes.length} [quiz]: skipped`);
+        return { index: i, scene: { ...scene, narration: '小測驗時間，請回答以下問題。' } };
+      }
 
-    if (scene.type === 'quiz') {
-      // Quiz scenes: keep simple
-      enrichedScenes.push({
-        ...scene,
-        narration: '小測驗時間，請回答以下問題。',
-      });
-      continue;
-    }
+      console.log(`📄 Scene ${i + 1}/${scenes.length}: ${scene.title}`);
+      const prompt = buildContentPrompt(scene);
 
-    const prompt = buildContentPrompt(scene);
-    
-    try {
-      const response = await llmAdapter.call({
-        messages: [{ role: 'user', content: prompt.userPrompt }],
-        systemPrompt: prompt.systemPrompt,
-        maxTokens: 2048,
-      });
+      try {
+        const response = await llmAdapter.callWithRetry({
+          messages: [{ role: 'user', content: prompt.userPrompt }],
+          systemPrompt: prompt.systemPrompt,
+          maxTokens: 2048,
+        });
 
-      // Parse and merge content
-      const contentData = JSON.parse(
-        response.text
-          .replace(/```json\n?/g, '')
-          .replace(/```\n?/g, '')
-          .trim()
-      );
+        const contentData = JSON.parse(
+          response.text
+            .replace(/```json\n?/g, '')
+            .replace(/```\n?/g, '')
+            .trim()
+        );
 
-      enrichedScenes.push({
-        ...scene,
-        ...contentData,
-      });
+        console.log(`✅ Scene ${i + 1} content done`);
+        return { index: i, scene: { ...scene, ...contentData } };
+      } catch (error) {
+        console.warn(`⚠️  Scene ${i + 1} content failed, using defaults`);
+        return { index: i, scene };
+      }
+    })
+  );
 
-      console.log(`✅ Scene ${i + 1} content generated`);
-    } catch (error) {
-      console.warn(`⚠️  Failed to generate content for scene ${i + 1}, using defaults`);
-      enrichedScenes.push(scene);
-    }
-
-    // Update progress
-    const progressPercent = 35 + Math.round((i / scenes.length) * 30);
-    console.log(`Progress: ${progressPercent}%`);
-  }
+  const results = await Promise.all(tasks);
+  const enrichedScenes = results
+    .sort((a, b) => a.index - b.index)
+    .map((r) => r.scene);
 
   console.log(`\n✅ All scene content generated`);
 
@@ -184,56 +164,54 @@ async function contentNode(
   };
 }
 
-/**
- * Stage 4: Generate speaker actions (whiteboard, speech, effects)
- */
 async function actionsNode(
   state: CourseGeneratorStateType,
-  llmAdapter: OpenClawLLMAdapter
+  llmAdapter: OpenClawLLMAdapter,
+  concurrency: number
 ): Promise<Partial<CourseGeneratorStateType>> {
   console.log(`\n${'='.repeat(50)}`);
-  console.log('🎓 Stage 4: Generating Speaker Actions');
+  console.log(`🎓 Stage 4: Generating Speaker Actions (concurrency: ${concurrency})`);
   console.log('='.repeat(50));
 
   const scenes = state.outline;
-  const scenesWithActions: Scene[] = [];
+  const limit = pLimit(concurrency);
 
-  for (let i = 0; i < scenes.length; i++) {
-    const scene = scenes[i];
-    console.log(`\n🎬 Generating actions for scene ${i + 1}/${scenes.length}`);
+  const tasks = scenes.map((scene, i) =>
+    limit(async () => {
+      if (scene.type === 'quiz' || !scene.narration) {
+        return { index: i, scene };
+      }
 
-    if (scene.type === 'quiz' || !scene.narration) {
-      scenesWithActions.push(scene);
-      continue;
-    }
+      console.log(`🎬 Scene ${i + 1}/${scenes.length}: ${scene.title}`);
+      const prompt = buildActionsPrompt(scene);
 
-    const prompt = buildActionsPrompt(scene);
-    
-    try {
-      const response = await llmAdapter.call({
-        messages: [{ role: 'user', content: prompt.userPrompt }],
-        systemPrompt: prompt.systemPrompt,
-        maxTokens: 1024,
-      });
+      try {
+        const response = await llmAdapter.callWithRetry({
+          messages: [{ role: 'user', content: prompt.userPrompt }],
+          systemPrompt: prompt.systemPrompt,
+          maxTokens: 1024,
+        });
 
-      const actionsData = JSON.parse(
-        response.text
-          .replace(/```json\n?/g, '')
-          .replace(/```\n?/g, '')
-          .trim()
-      );
+        const actionsData = JSON.parse(
+          response.text
+            .replace(/```json\n?/g, '')
+            .replace(/```\n?/g, '')
+            .trim()
+        );
 
-      scenesWithActions.push({
-        ...scene,
-        actions: actionsData.actions || [],
-      });
+        console.log(`✅ Scene ${i + 1} actions done`);
+        return { index: i, scene: { ...scene, actions: actionsData.actions || [] } };
+      } catch (error) {
+        console.warn(`⚠️  Scene ${i + 1} actions failed`);
+        return { index: i, scene };
+      }
+    })
+  );
 
-      console.log(`✅ Actions generated for scene ${i + 1}`);
-    } catch (error) {
-      console.warn(`⚠️  Failed to generate actions for scene ${i + 1}`);
-      scenesWithActions.push(scene);
-    }
-  }
+  const results = await Promise.all(tasks);
+  const scenesWithActions = results
+    .sort((a, b) => a.index - b.index)
+    .map((r) => r.scene);
 
   return {
     outline: scenesWithActions,
@@ -246,9 +224,6 @@ async function actionsNode(
   };
 }
 
-/**
- * Finalize: Create classroom structure
- */
 async function finalizeNode(
   state: CourseGeneratorStateType
 ): Promise<Partial<CourseGeneratorStateType>> {
@@ -280,13 +255,18 @@ async function finalizeNode(
 
 // ============== Graph Builder ==============
 
-export async function buildCourseGeneratorGraph(llmAdapter: OpenClawLLMAdapter) {
-  const workflow = new StateGraph(CourseGeneratorState);
+export async function buildCourseGeneratorGraph(
+  llmAdapter: OpenClawLLMAdapter,
+  options: { concurrency?: number } = {}
+) {
+  const concurrency = options.concurrency ?? 3;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const workflow: any = new StateGraph(CourseGeneratorState);
 
   workflow.addNode('init', initNode);
-  workflow.addNode('outline', async (state) => outlineNode(state, llmAdapter));
-  workflow.addNode('content', async (state) => contentNode(state, llmAdapter));
-  workflow.addNode('actions', async (state) => actionsNode(state, llmAdapter));
+  workflow.addNode('outline', async (state: CourseGeneratorStateType) => outlineNode(state, llmAdapter));
+  workflow.addNode('content', async (state: CourseGeneratorStateType) => contentNode(state, llmAdapter, concurrency));
+  workflow.addNode('actions', async (state: CourseGeneratorStateType) => actionsNode(state, llmAdapter, concurrency));
   workflow.addNode('finalize', finalizeNode);
 
   workflow.addEdge(START, 'init');
