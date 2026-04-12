@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>課程播放器</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; }
+    .container { max-width: 1200px; margin: 20px auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; height: calc(100vh - 40px); }
+    .slide-area { flex: 1; display: flex; align-items: center; justify-content: center; background: #f9f9f9; overflow: auto; padding: 20px; }
+    .slide { width: 90%; max-width: 960px; aspect-ratio: 16/9; background: white; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 40px; display: flex; flex-direction: column; }
+    .slide-title { font-size: 40px; font-weight: bold; color: #1F4E78; margin-bottom: 20px; border-bottom: 3px solid #5B9BD5; padding-bottom: 15px; }
+    .slide-content { font-size: 18px; color: #333; line-height: 1.8; flex: 1; display: flex; align-items: center; }
+    .slide-content ul { list-style: disc; margin-left: 40px; width: 100%; }
+    .slide-content li { margin-bottom: 12px; }
+    .control-panel { width: 320px; background: #fafafa; border-left: 1px solid #e0e0e0; display: flex; flex-direction: column; }
+    .panel-header { padding: 20px; border-bottom: 1px solid #e0e0e0; background: white; }
+    .panel-title { font-size: 18px; font-weight: bold; color: #1F4E78; }
+    .panel-subtitle { font-size: 12px; color: #999; margin-top: 5px; }
+    .controls { padding: 20px; border-bottom: 1px solid #e0e0e0; }
+    .button-group { display: flex; gap: 10px; margin-bottom: 15px; }
+    button { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer; font-size: 14px; }
+    button:hover { background: #f0f0f0; }
+    button.active { background: #5B9BD5; color: white; border-color: #5B9BD5; }
+    .progress-bar { width: 100%; height: 4px; background: #e0e0e0; border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #5B9BD5; transition: width 0.3s; }
+    audio { width: 100%; height: 30px; }
+    .slides-list { flex: 1; overflow-y: auto; }
+    .slide-item { padding: 12px 20px; border-bottom: 1px solid #f0f0f0; cursor: pointer; font-size: 13px; color: #333; }
+    .slide-item:hover { background: #f0f0f0; }
+    .slide-item.active { background: #e3f2fd; color: #1F4E78; font-weight: bold; border-left: 4px solid #5B9BD5; padding-left: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="slide-area">
+      <div class="slide">
+        <div class="slide-title" id="slideTitle">載入中...</div>
+        <div class="slide-content" id="slideContent"></div>
+      </div>
+    </div>
+    <div class="control-panel">
+      <div class="panel-header">
+        <div class="panel-title" id="courseTitle">課程</div>
+        <div class="panel-subtitle" id="courseStats">0 / 0</div>
+      </div>
+      <div class="controls">
+        <div class="button-group">
+          <button onclick="prev()">⏮ 上一頁</button>
+          <button id="playBtn" class="active" onclick="togglePlay()">▶ 播放</button>
+          <button onclick="next()">下一頁 ⏭</button>
+        </div>
+        <div style="font-size: 12px; color: #999; margin-bottom: 10px;">
+          <span id="timeLabel">0:00 / 0:00</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+      <div style="padding: 0 20px 10px; border-bottom: 1px solid #e0e0e0;">
+        <audio id="audio" onended="next()" ontimeupdate="updateTime()"></audio>
+      </div>
+      <div class="slides-list" id="slidesList"></div>
+    </div>
+  </div>
+
+  <script>
+    let slides = [];
+    let narration = [];
+    let idx = 0;
+    let playing = false;
+
+    async function load() {
+      try {
+        const r1 = await fetch('./slides.json');
+        slides = await r1.json();
+        const r2 = await fetch('./narration.json');
+        narration = await r2.json();
+        show(0);
+        renderList();
+      } catch (e) {
+        document.getElementById('slideContent').innerHTML = '❌ 無法載入: ' + e.message;
+      }
+    }
+
+    function show(i) {
+      if (i < 0 || i >= slides.length) return;
+      idx = i;
+      const slide = slides[i];
+      document.getElementById('slideTitle').textContent = slide.title;
+      
+      let html = '';
+      if (slide.elements?.length) {
+        const lines = slide.elements[0].content.split('\n');
+        html = '<ul>' + lines.map(l => '<li>' + l + '</li>').join('') + '</ul>';
+      }
+      document.getElementById('slideContent').innerHTML = html;
+      document.getElementById('courseStats').textContent = (i + 1) + ' / ' + slides.length;
+      document.getElementById('progressFill').style.width = ((i + 1) / slides.length * 100) + '%';
+
+      const audio = document.getElementById('audio');
+      if (narration.slides?.[i]?.audioFile) {
+        audio.src = './narration/' + narration.slides[i].audioFile;
+      }
+      renderList();
+    }
+
+    function togglePlay() {
+      const audio = document.getElementById('audio');
+      if (!audio.src) return;
+      if (playing) {
+        audio.pause();
+        playing = false;
+      } else {
+        audio.play();
+        playing = true;
+      }
+      document.getElementById('playBtn').textContent = playing ? '⏸ 暫停' : '▶ 播放';
+    }
+
+    function next() { show(idx + 1); }
+    function prev() { show(idx - 1); }
+
+    function updateTime() {
+      const audio = document.getElementById('audio');
+      const t = audio.currentTime;
+      const d = audio.duration;
+      const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+      document.getElementById('timeLabel').textContent = fmt(t || 0) + ' / ' + fmt(d || 0);
+      document.getElementById('progressFill').style.width = (d ? t / d * 100 : 0) + '%';
+    }
+
+    function renderList() {
+      const list = document.getElementById('slidesList');
+      list.innerHTML = slides.map((s, i) => 
+        '<div class="slide-item' + (i === idx ? ' active' : '') + '" onclick="show(' + i + ')">' +
+        s.title + '<div style="font-size:11px;color:#999;margin-top:2px;">頁 ' + (i + 1) + '</div>' +
+        '</div>'
+      ).join('');
+    }
+
+    document.getElementById('audio').addEventListener('play', () => { playing = true; document.getElementById('playBtn').textContent = '⏸ 暫停'; });
+    document.getElementById('audio').addEventListener('pause', () => { playing = false; document.getElementById('playBtn').textContent = '▶ 播放'; });
+
+    load();
+  </script>
+</body>
+</html>
