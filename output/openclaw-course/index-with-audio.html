@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw 入門課程</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6fb; color: #222; margin: 0; }
+    .wrap { max-width: 1200px; margin: 24px auto; padding: 20px; }
+    .header { background: #fff; padding: 28px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.06); text-align: center; }
+    .header h1 { margin: 0; font-size: 28px; color: #2b3a67; }
+    .header p { margin: 6px 0 0 0; color: #666; }
+    .layout { display: grid; grid-template-columns: 260px 1fr; gap: 18px; margin-top: 18px; }
+    .sidebar { background: #fff; padding: 12px; border-radius: 10px; height: calc(100vh - 200px); overflow: auto; }
+    .main { background: #fff; padding: 28px; border-radius: 10px; min-height: 60vh; }
+    .scene-item { padding: 12px; border-radius: 6px; cursor: pointer; margin-bottom: 6px; }
+    .scene-item:hover { background: #f0f4ff; }
+    .scene-item.active { background: linear-gradient(90deg,#6b8cff,#7c61f4); color:#fff; }
+    .scene-title { font-weight: 600; }
+    .scene-sub { font-size: 13px; color: #666; margin-top: 6px; }
+    .audio-box { margin-bottom: 16px; }
+    .controls { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+    .btn { padding: 10px 18px; border-radius: 8px; border: none; background: #4a6cff; color: #fff; cursor: pointer; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .points { margin: 12px 0; }
+    .points li { margin: 8px 0; }
+    footer { text-align: center; margin-top: 20px; color: #888; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <h1>OpenClaw 入門：架構、技能與實務操作</h1>
+      <p>介紹 OpenClaw 的核心概念、開發流程與部署考量（互動示範）</p>
+    </div>
+    
+    <div class="layout">
+      <aside class="sidebar" id="sidebar"></aside>
+      <main class="main">
+        <div id="content"></div>
+        <div class="controls">
+          <button class="btn" id="prevBtn" onclick="prev()">← 上一頁</button>
+          <button class="btn" id="nextBtn" onclick="next()">下一頁 →</button>
+        </div>
+      </main>
+    </div>
+    
+    <footer>由 teach-me-cli 生成 • 可用於教學與展示</footer>
+  </div>
+
+  <script>
+    const scenes = (function(){
+      try { return JSON.parse(`{
+  "id": "openclaw_intro_course_20260413",
+  "title": "OpenClaw 入門：架構、技能與實務操作",
+  "topic": "OpenClaw",
+  "description": "本課程以實務角度介紹 OpenClaw：核心概念、架構、技能 (Skills)、工具 (Tools)、記憶系統、編排、部署與常用工作流程。適合想將 OpenClaw 作為自動化/Agent 平台的開發者與產品負責人。",
+  "scenes": [
+    {
+      "id": "scene_001",
+      "type": "lecture",
+      "title": "歡迎與課程導覽",
+      "keyPoints": [
+        "課程目的與學習預期",
+        "課程結構：概念 → 架構 → 實作 → 部署",
+        "如何使用本課程的範例與資源"
+      ],
+      "narration": "歡迎來到 OpenClaw 入門課程。我們會從核心概念開始，帶你理解 OpenClaw 如何把人類任務拆成 agent、skills 與工具，接著用實務範例示範如何建立 skill、調用本地工具，最後講部署與安全性考量。本課程適合開發者與產品負責人。",
+      "audioFile": "narrations/scene_001_narration.wav",
+      "duration": 180,
+      "actions": []
+    },
+    {
+      "id": "scene_002",
+      "type": "lecture",
+      "title": "OpenClaw 的核心概念",
+      "keyPoints": [
+        "Session、Agent、Skill 與 Tool 的分工",
+        "無狀態 vs 有狀態的運行方式",
+        "通過消息與事件串接工作流"
+      ],
+      "narration": "OpenClaw 的核心是把複雜任務拆成可組合的小單位：session（會話）管理交互上下文，agent 是執行智慧任務的單位，skill 定義可重用的功能語義，tool 則是能被呼叫的外部能力（如 TTS、HTTP、文件操作）。理解這些概念，是設計可靠流程的基礎。",
+      "audioFile": "narrations/scene_002_narration.wav",
+      "duration": 240,
+      "actions": []
+    },
+    {
+      "id": "scene_003",
+      "type": "lecture",
+      "title": "系統架構總覽",
+      "keyPoints": [
+        "Gateway 與 daemon 的作用",
+        "Agent runtime（main / subagent / acp）",
+        "外部服務整合（模型、存儲、Webhook）"
+      ],
+      "narration": "OpenClaw 的運行架構包含 gateway 與多個 agent runtime。gateway 負責接收外部事件（例如 Telegram 訊息）並路由，agent runtime 執行具體工作。模型與外部服務（如 TTS、向量資料庫）通常是可插拔的資源，skill 與 sessions 透過它們擴展能力。",
+      "audioFile": "narrations/scene_003_narration.wav",
+      "duration": 210,
+      "actions": []
+    },
+    {
+      "id": "scene_004",
+      "type": "lecture",
+      "title": "撰寫 Skill 與 SKILL.md 規範",
+      "keyPoints": [
+        "Skill 目錄結構與入口說明",
+        "SKILL.md 的用途與必要欄位",
+        "如何測試與包裝 skill"
+      ],
+      "narration": "Skill 是 OpenClaw 的主要擴展單位。每個 skill 包含實作程式碼與 SKILL.md 描述檔，後者說明能力、參數與使用方式。良好的 SKILL.md 能讓 skill 被其他人或系統自動發現與使用。編寫 skill 時，注意輸入驗證與失敗回退機制。",
+      "audioFile": "narrations/scene_004_narration.wav",
+      "duration": 180,
+      "actions": []
+    },
+    {
+      "id": "scene_005",
+      "type": "lecture",
+      "title": "Tools 與外部整合模式",
+      "keyPoints": [
+        "內建 Tools 範例：omnivoice, web_fetch, exec",
+        "安全邊界：何時需要人工許可",
+        "可靠性：重試、超時與回退策略"
+      ],
+      "narration": "Tools 提供可被 skill 呼叫的外部能力。常見有本機 TTS、網路抓取、Shell 執行等。設計 Tool 時要明確安全邊界，例如高權限命令應該需要批准；同時要處理重試與超時，避免聯外呼叫把整個流程鎖住。",
+      "audioFile": "narrations/scene_005_narration.wav",
+      "duration": 200,
+      "actions": []
+    },
+    {
+      "id": "scene_006",
+      "type": "lecture",
+      "title": "記憶系統（Memory）與資料檢索",
+      "keyPoints": [
+        "長期記憶 vs 會話快取",
+        "memory-lancedb-pro 等向量資料庫集成",
+        "隱私與敏感資料處理原則"
+      ],
+      "narration": "OpenClaw 支援多種記憶機制，像是向量資料庫（用於相似度檢索）、BM25 等混合檢索策略。設計記憶時，要考慮資料保留、加密與隱私，並確保敏感資料不會被不當外放。",
+      "audioFile": "narrations/scene_006_narration.wav",
+      "duration": 220,
+      "actions": []
+    },
+    {
+      "id": "scene_007",
+      "type": "lecture",
+      "title": "編排與 LangGraph 思路",
+      "keyPoints": [
+        "多階段編排（init → outline → content → actions）",
+        "無狀態任務與可重試設計",
+        "子代理與長跑任務管理"
+      ],
+      "narration": "對於複雜任務，OpenClaw 使用類似 LangGraph 的編排方式，把工作拆成多個節點與階段。關鍵是把每個節點作為可重試、可觀察的單位，子代理 (subagent) 可用於隔離長時間或風險較高的運算。",
+      "audioFile": "narrations/scene_007_narration.wav",
+      "duration": 210,
+      "actions": []
+    },
+    {
+      "id": "scene_008",
+      "type": "lecture",
+      "title": "Heartbeat 與 Cron：監控與定期任務",
+      "keyPoints": [
+        "使用 Heartbeat 做輕量檢查與合併任務",
+        "Cron 用於準確排程與提醒",
+        "避免過度通知的設計原則"
+      ],
+      "narration": "Heartbeat 適合頻繁但容忍延遲的檢查，能把多個檢查合併回報；Cron 適合需要精準時間點的任務（例如每天 9 點提醒）。設計時要避免頻繁重複通知，並提供降噪策略。",
+      "audioFile": "narrations/scene_008_narration.wav",
+      "duration": 180,
+      "actions": []
+    },
+    {
+      "id": "scene_009",
+      "type": "lecture",
+      "title": "開發者流程：本地測試與子代理",
+      "keyPoints": [
+        "使用 sessions_spawn 測試子代理工作流",
+        "在本地模擬外部工具與回應",
+        "版本控制與 SKILL 測試策略"
+      ],
+      "narration": "開發 OpenClaw skill 與 agent 時，建議在本地模擬外部工具回應，並用 sessions_spawn 建立隔離測試環境。把 SKILL.md、範例請求與預期回應都放在版本控制中，讓 CI 可以自動驗證基本行為。",
+      "audioFile": "narrations/scene_009_narration.wav",
+      "duration": 200,
+      "actions": []
+    },
+    {
+      "id": "scene_010",
+      "type": "lecture",
+      "title": "部署、監控與安全性",
+      "keyPoints": [
+        "如何部署 OpenClaw（主機、容器、Serverless）",
+        "日誌、指標與告警設計",
+        "最小權限與審計追蹤"
+      ],
+      "narration": "部署時可選擇容器化或在受控主機上運行。務必設計完善的日誌與指標（例如每個 skill 的執行成功率、延遲），並設定審計記錄來追蹤高權限操作。最小權限原則可降低濫用風險。",
+      "audioFile": "narrations/scene_010_narration.wav",
+      "duration": 240,
+      "actions": []
+    },
+    {
+      "id": "scene_011",
+      "type": "lecture",
+      "title": "實務範例：從 Slack 到自動化流程",
+      "keyPoints": [
+        "事件驅動：從訊息到 Skill 呼叫",
+        "逐步示範：接收、解析、執行、回應",
+        "錯誤處理與回滾範例"
+      ],
+      "narration": "以 Slack 或 Telegram 為接入點，OpenClaw 可以把使用者指令轉為事件，交給 agent 執行 skill，例如自動化報表、文件摘要或課程生成。示範流程包括輸入驗證、非同步任務與失敗回退。",
+      "audioFile": "narrations/scene_011_narration.wav",
+      "duration": 220,
+      "actions": []
+    },
+    {
+      "id": "scene_012",
+      "type": "lecture",
+      "title": "社群資源與進階學習路徑",
+      "keyPoints": [
+        "官方文件與範例 repo",
+        "ClawHub、插件與社群貢獻流程",
+        "下一步學習建議：技能設計、記憶策略、編排模式"
+      ],
+      "narration": "最後我們介紹可參考的資源：官方文件、ClawHub 的 skill 生態、範例專案，以及社群（Discord）。若你想深入，建議從設計 reusable skill、記憶策略與複雜編排模式開始實作。",
+      "audioFile": "narrations/scene_012_narration.wav",
+      "duration": 180,
+      "actions": []
+    },
+    {
+      "id": "scene_013",
+      "type": "closing",
+      "title": "總結與行動建議",
+      "keyPoints": [
+        "把小型自動化作為起點",
+        "逐步擴展 skill 與記憶",
+        "保持安全與可觀察性"
+      ],
+      "narration": "總結一下：用 OpenClaw 可以把重複性與可程式化任務自動化，從小型 skill 做起、測試與觀察，再逐步擴展到更複雜的編排與記憶策略。行動建議：先實作一個簡單 skill，並在本地測試與 CI 驗證。祝你實作順利！",
+      "audioFile": "narrations/scene_013_narration.wav",
+      "duration": 180,
+      "actions": []
+    }
+  ],
+  "metadata": {
+    "generatedAt": "2026-04-13T03:21:00+08:00",
+    "author": "狐狸"
+  }
+}` ).scenes; } catch(e){ return []; }
+    })();
+
+    const sidebar = document.getElementById('sidebar');
+    const content = document.getElementById('content');
+    let idx = 0;
+
+    function renderSidebar(){
+      sidebar.innerHTML = '';
+      scenes.forEach((s, i)=>{
+        const el = document.createElement('div');
+        el.className = 'scene-item';
+        el.id = 'scene-'+i;
+        el.innerHTML = `<div class='scene-title'>${i+1}. ${s.title}</div><div class='scene-sub'>${s.keyPoints.slice(0,2).join(' • ')}</div>`;
+        el.onclick = ()=>go(i);
+        sidebar.appendChild(el);
+      });
+    }
+
+    function renderContent(){
+      const s = scenes[idx];
+      content.innerHTML = '';
+      const title = document.createElement('h2'); title.textContent = (idx+1)+'. '+s.title; content.appendChild(title);
+
+      if(s.audioFile){
+        const box = document.createElement('div'); box.className='audio-box';
+        box.innerHTML = `<audio controls src='narrations/${s.audioFile.split('/').pop()}'></audio>`;
+        content.appendChild(box);
+      }
+
+      if(s.keyPoints && s.keyPoints.length){
+        const ul = document.createElement('ul'); ul.className='points';
+        s.keyPoints.forEach(p=>{ const li = document.createElement('li'); li.textContent = p; ul.appendChild(li); });
+        content.appendChild(ul);
+      }
+
+      if(s.narration){
+        const p = document.createElement('p'); p.textContent = s.narration; content.appendChild(p);
+      }
+
+      updateActive();
+    }
+
+    function updateActive(){
+      document.querySelectorAll('.scene-item').forEach((el, i)=>{
+        el.classList.toggle('active', i===idx);
+      });
+      document.getElementById('prevBtn').disabled = idx===0;
+      document.getElementById('nextBtn').disabled = idx===scenes.length-1;
+    }
+
+    function go(i){ idx=i; renderContent(); document.querySelector('#scene-'+i).scrollIntoView({block:'nearest'}); }
+    function prev(){ if(idx>0){ idx--; renderContent(); }}
+    function next(){ if(idx<scenes.length-1){ idx++; renderContent(); }}
+
+    // init
+    renderSidebar(); renderContent();
+  </script>
+</body>
+</html>
