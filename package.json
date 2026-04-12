@@ -1,16 +1,42 @@
 {
   "name": "teach-me-cli",
-  "version": "0.1.0",
-  "description": "PPT + 語音課程生成工具",
+  "version": "2.0.0",
+  "description": "OpenMAIC-inspired course generation tool powered by OpenClaw + OmniVoice",
   "type": "module",
-  "scripts": {
-    "dev": "node src/cli.mjs",
-    "test": "node src/test-outline.mjs"
+  "main": "./dist/index.js",
+  "bin": {
+    "teach-me": "./dist/cli/index.js"
   },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest",
+    "generate": "tsx src/cli/index.ts generate",
+    "config": "tsx src/cli/index.ts config"
+  },
+  "keywords": [
+    "course-generation",
+    "openmaic",
+    "openclaw",
+    "omnivoice",
+    "pptx",
+    "tts"
+  ],
+  "author": "Jimmy with 🦊",
+  "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.24.0",
-    "pptxgenjs": "^3.12.0",
-    "nanoid": "^4.0.2",
-    "dotenv": "^16.3.1"
+    "@langchain/core": "^1.1.16",
+    "@langchain/langgraph": "^1.1.1",
+    "@types/node": "^20.0.0",
+    "dotenv": "^16.3.1",
+    "pptxgenjs": "^4.0.0",
+    "unpdf": "^1.4.0",
+    "yargs": "^17.7.2",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.0",
+    "tsx": "^4.7.0"
   }
 }

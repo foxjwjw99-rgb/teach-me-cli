@@ -1,133 +1,270 @@
-# teach-me-cli 
+# teach-me-cli v2.0
 
-PPT + 語音課程生成工具
+**OpenMAIC-inspired course generation tool powered by OpenClaw + OmniVoice**
 
-## 功能
+Generate beautiful, interactive courses from any topic or document. Powered by your choice of LLM (Claude, GPT, Gemini, etc.) via OpenClaw, with beautiful narration via OmniVoice.
 
-- 📚 AI 生成課程大綱 (Claude)
-- 📊 生成 PPTX 幻燈片
-- 🎙️ OmniVoice 語音配音 (可選)
-- 🎓 網頁播放器
+## Features
 
-## 快速開始
+✨ **Multi-Stage Generation Pipeline**
+- 📚 Stage 1: Generate structured course outline (12-20 scenes)
+- 📄 Stage 2: Generate detailed content for each scene
+- 🎬 Stage 3: Generate speaker actions (whiteboard, speech, effects)
+- 🎙️  Stage 4: Generate audio narration with OmniVoice
 
-### 1. 安裝依賴
+✅ **Rich Output Formats**
+- **PPTX** — Beautiful, editable PowerPoint presentations
+- **JSON** — Complete course structure (compatible with OpenMAIC player)
+- **HTML** — Interactive web player for in-browser viewing
+
+🧠 **LLM Integration**
+- Works with any OpenClaw-supported model (Claude, GPT-4, Gemini, etc.)
+- Stateless design — perfect for serverless deployments
+- No API key management — OpenClaw handles authentication
+
+🎙️ **Professional Audio**
+- OmniVoice text-to-speech with fixed voice cloning
+- Taiwan Mandarin style for natural, conversational narration
+- Configurable speech rate and tone
+
+🔌 **OpenClaw Integration**
+- Can be called as an OpenClaw skill from messaging apps (Telegram, Feishu, etc.)
+- Accepts both text topics and uploaded documents
+
+## Quick Start
+
+### 1. Install Dependencies
 
 ```bash
 cd teach-me-cli
 npm install
 ```
 
-### 2. 配置 API Key
+### 2. Configure
 
-編輯 `.env.local`:
+Create or update `.env.local`:
 
+```env
+ANTHROPIC_API_KEY=sk-ant-...  # Optional, for standalone mode
 ```
-ANTHROPIC_API_KEY=sk-ant-...
-```
 
-### 3. 生成課程
+OmniVoice configuration is pre-baked (uses fixed clone reference).
+
+### 3. Generate a Course
 
 ```bash
-# 默認主題: 微積分入門
-npm run dev
+# From a topic
+npm run generate "微積分入門"
 
-# 自訂主題
-npm run dev -- "教我 Python"
+# From a file
+npm run generate ./my-notes.md -o ./output
+
+# With custom formats
+npm run generate "Python 基礎" -f pptx,json,html
 ```
 
-### 4. 輸出文件
+### 4. View Output
 
 ```
 output/
-├── outline.json          # 課程大綱
-├── slides.json           # 課件內容
-├── [topic].pptx          # PPTX 檔案
-├── narration.json        # 語音 metadata
-└── narration/            # MP3 音檔
-    ├── slide_001.mp3
-    ├── slide_002.mp3
-    └── ...
+├── 微積分入門.pptx       # Editable PowerPoint
+├── classroom.json        # Course structure
+├── index.html           # Interactive player
+└── audio/               # MP3 narration files
 ```
 
-### 5. 播放課程
+Open `output/index.html` in your browser to view the course.
 
-用瀏覽器打開 `public/index.html` 並用 web server 提供服務：
+## CLI Usage
 
 ```bash
-# 用 Python
-python3 -m http.server 8000 --directory public
+teach-me generate <input> [options]
 
-# 或 Node.js
-npx serve public
+Options:
+  -o, --output <dir>      Output directory (default: ./output)
+  -f, --format <list>     Export formats: pptx,json,html (default: pptx,json)
+  -t, --topic <string>    Override topic (useful for files)
+
+Examples:
+  teach-me generate "Teach me React"
+  teach-me generate ./lecture.pdf -o ./courses
+  teach-me generate ./notes.md -f json -t "Advanced JavaScript"
 ```
 
-然後訪問 `http://localhost:8000/index.html`
+## Architecture
 
----
+```
+Input (Topic / File)
+       ↓
+┌──────────────────────────────────┐
+│  LangGraph Director              │
+│  (4-stage course generation)     │
+└──────────────────────────────────┘
+       ↓ ↓ ↓ ↓
+   Stage 1: Outline Generation
+   Stage 2: Content Generation
+   Stage 3: Action Generation
+   Stage 4: Audio Generation
+       ↓ ↓ ↓
+   Export (PPTX / JSON / HTML)
+```
 
-## 使用流程
+### Design Principles
 
-### 生成課程
+1. **Stateless** — Each run is independent, no server state
+2. **Modular** — Each stage can be customized independently
+3. **OpenClaw-Native** — Designed to work seamlessly with OpenClaw
+4. **Type-Safe** — Full TypeScript support with Zod validation
+
+## Project Structure
+
+```
+src/
+├── cli/
+│   ├── index.ts              # CLI entry point
+│   └── commands/
+│       └── generate.ts       # Generate command
+├── orchestration/
+│   ├── director-graph.ts     # LangGraph 4-stage pipeline
+│   ├── llm-adapter.ts        # OpenClaw LLM integration
+│   └── prompt-builder.ts     # Prompt generation
+├── generation/
+│   ├── stage-outline.ts      # Stage 1
+│   ├── stage-content.ts      # Stage 2
+│   ├── stage-images.ts       # Stage 3 (optional)
+│   └── stage-actions.ts      # Stage 4 (optional)
+├── export/
+│   └── index.ts              # PPTX, JSON, HTML export
+├── audio/
+│   └── omnivoice.ts          # OmniVoice TTS
+└── types.ts                  # Type definitions
+
+skill/
+└── SKILL.md                  # OpenClaw skill definition
+```
+
+## Using with OpenClaw
+
+teach-me-cli is designed to work as an OpenClaw skill.
+
+### Install as OpenClaw Skill
 
 ```bash
-npm run dev -- "微積分入門"
+clawhub install teach-me-cli
+# or manually:
+cp -r ./skill ~/.openclaw/skills/teach-me
 ```
 
-**輸出**:
-- `output/outline.json` — 大綱
-- `output/slides.json` — 課件
-- `output/微積分入門.pptx` — 可下載的 PPTX
-- `output/narration/` — 語音檔
+### Usage from OpenClaw
 
-### 播放課程
+```
+User → OpenClaw → /teach-me "Teach me machine learning"
+                ↓
+           teach-me-cli (this tool)
+                ↓
+         Course generation
+                ↓
+           User receives PPTX + JSON + HTML
+```
 
-1. 打開 `public/index.html`
-2. 按「播放」🎓
-3. 左側面板可以快速跳頁
+## Development
 
----
+### Build
 
-## 技術棧
+```bash
+npm run build
+```
 
-- **Outline**: Claude API (Sonnet 3.5)
-- **PPTX**: pptxgenjs
-- **TTS**: OmniVoice (本地)
-- **播放器**: 純 HTML5 + JavaScript
+### Run in Dev Mode
 
----
+```bash
+npm run dev -- "Test Topic"
+```
 
-## 開發
-
-### 測試大綱生成
+### Test
 
 ```bash
 npm run test
 ```
 
-生成 `output/outline.json`
+## Configuration
 
-### 調試
+### OmniVoice Settings
 
-編輯 `lib/prompts.mjs` 調整提示詞
+Edit `.env.local` or pass config directly:
 
----
+```env
+OMNIVOICE_REF_AUDIO=/path/to/voice-clone.wav
+OMNIVOICE_REF_TEXT="Reference text"
+OMNIVOICE_INSTRUCT="female, very low pitch"
+OMNIVOICE_SPEED=0.9
+OMNIVOICE_STYLE="台灣國語..."
+```
 
-## 成本
+### LLM Selection
 
-- Claude API: ~0.01 USD per course (10 slides)
-- OmniVoice: 本地免費
+When used standalone, set:
 
----
+```env
+ANTHROPIC_API_KEY=sk-ant-...
+```
 
-## 下一步
+When used with OpenClaw, the LLM is automatically injected.
 
-- [ ] 支援圖像生成 (DALL-E)
-- [ ] 支援 PDF 匯入
-- [ ] 交互式測驗
-- [ ] 多語言支援
-- [ ] 聲音自訂
+## Performance
 
----
+- **Outline generation** — ~30 seconds (with LLM)
+- **Content generation** — ~60-90 seconds (parallel processing)
+- **Audio generation** — ~30 seconds (3-5 scenes)
+- **Total** — ~2-3 minutes per full course
 
-Made with 🦊 by OpenClaw
+## Troubleshooting
+
+### "OmniVoice not found"
+
+Make sure OmniVoice is installed and in your PATH:
+
+```bash
+which omnivoice-local
+# Should return the path, if not: pip install omnivoice-cli
+```
+
+### "No LLM configured"
+
+In standalone mode, you need an API key. In OpenClaw mode, it's injected automatically.
+
+```bash
+# Standalone mode
+export ANTHROPIC_API_KEY=sk-ant-...
+npm run generate "Your topic"
+```
+
+### Audio generation failures
+
+OmniVoice might not be available. The CLI will skip audio generation but still produce PPTX/JSON:
+
+```bash
+npm run generate "Your topic" -f pptx,json
+```
+
+## Roadmap
+
+- [ ] Support for PDF image extraction
+- [ ] Interactive quiz generation with auto-grading
+- [ ] Diagram generation (via DALL-E, etc.)
+- [ ] Real-time playback with whiteboard simulation
+- [ ] Multi-language support
+- [ ] Cloud deployment (AWS Lambda, Google Cloud Functions)
+
+## License
+
+MIT — Made with 🦊 by Jimmy + OpenClaw
+
+## Support
+
+Questions or issues? Open an issue on GitHub or ask your OpenClaw assistant!
+
+```bash
+# In OpenClaw
+"Help me debug teach-me-cli"
+```
