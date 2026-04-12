@@ -5,7 +5,7 @@
 /**
  * PDF Provider IDs
  */
-export type PDFProviderId = 'unpdf' | 'mineru';
+export type PDFProviderId = 'unpdf' | 'mineru' | 'mineru-cloud';
 
 /**
  * PDF Provider Configuration
@@ -26,6 +26,10 @@ export interface PDFParserConfig {
   providerId: PDFProviderId;
   apiKey?: string;
   baseUrl?: string;
+  /** For MinerU cloud: polling timeout in ms (default 300000 = 5min) */
+  pollingTimeoutMs?: number;
+  /** For MinerU cloud: polling interval in ms (default 2000 = 2sec) */
+  pollingIntervalMs?: number;
 }
 
 // Note: ParsedPdfContent is imported from @/lib/types/pdf to avoid duplication

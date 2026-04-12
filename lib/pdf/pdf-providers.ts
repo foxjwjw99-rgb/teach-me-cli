@@ -176,6 +176,10 @@ export async function parsePDF(
       result = await parseWithMinerU(config, pdfBuffer);
       break;
 
+    case 'mineru-cloud':
+      result = await parseWithMinerUCloud(config, pdfBuffer);
+      break;
+
     default:
       throw new Error(`Unsupported PDF provider: ${config.providerId}`);
   }
@@ -431,6 +435,264 @@ function extractMinerUResult(fileResult: Record<string, unknown>): ParsedPdfCont
     metadata: {
       pageCount,
       parser: 'mineru',
+      imageMapping,
+      pdfImages,
+    },
+  };
+}
+
+/**
+ * Parse PDF using official MinerU Cloud API (v4/extract/task)
+ *
+ * Official MinerU Cloud API endpoints:
+ * POST https://mineru.net/api/v4/extract/task  (create task)
+ * GET  https://mineru.net/api/v4/extract/task/{task_id}  (get status/results)
+ *
+ * Authentication: Bearer token in Authorization header
+ *
+ * @see https://mineru.net/docs or official documentation
+ */
+async function parseWithMinerUCloud(
+  config: PDFParserConfig,
+  pdfBuffer: Buffer,
+): Promise<ParsedPdfContent> {
+  if (!config.apiKey) {
+    throw new Error(
+      'MinerU Cloud API key is required. ' +
+        'Get your free API key from https://mineru.net or contact the service provider.',
+    );
+  }
+
+  const cloudApiBase = 'https://mineru.net/api/v4/extract/task';
+  const pollingTimeoutMs = config.pollingTimeoutMs || 300000; // 5 min default
+  const pollingIntervalMs = config.pollingIntervalMs || 2000; // 2 sec default
+
+  log.info('[MinerU Cloud] Starting PDF parsing with cloud API');
+
+  // Step 1: Create task by uploading PDF
+  const taskId = await uploadPDFAndCreateTask(cloudApiBase, config.apiKey, pdfBuffer);
+  log.info(`[MinerU Cloud] Task created: ${taskId}`);
+
+  // Step 2: Poll for task completion
+  const result = await pollTaskUntilComplete(
+    cloudApiBase,
+    config.apiKey,
+    taskId,
+    pollingTimeoutMs,
+    pollingIntervalMs,
+  );
+  log.info(`[MinerU Cloud] Task completed: ${taskId}`);
+
+  // Step 3: Extract and convert result
+  return extractMinerUCloudResult(result, taskId);
+}
+
+/**
+ * Upload PDF and create extraction task on MinerU Cloud API
+ */
+async function uploadPDFAndCreateTask(
+  apiBase: string,
+  apiKey: string,
+  pdfBuffer: Buffer,
+): Promise<string> {
+  const formData = new FormData();
+
+  // Convert Buffer to Blob
+  const arrayBuffer = pdfBuffer.buffer.slice(
+    pdfBuffer.byteOffset,
+    pdfBuffer.byteOffset + pdfBuffer.byteLength,
+  );
+  const blob = new Blob([arrayBuffer as ArrayBuffer], {
+    type: 'application/pdf',
+  });
+
+  formData.append('file', blob, 'document.pdf');
+
+  const response = await fetch(apiBase, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => response.statusText);
+    throw new Error(
+      `[MinerU Cloud] Task creation failed (${response.status}): ${errorText}`,
+    );
+  }
+
+  const json = await response.json();
+
+  // Expected response: { id: "task_id", status: "queued", ... }
+  // or { task_id: "...", ... }
+  const taskId = json.id || json.task_id;
+  if (!taskId) {
+    throw new Error(
+      `[MinerU Cloud] No task ID returned. Response: ${JSON.stringify(json)}`,
+    );
+  }
+
+  return taskId;
+}
+
+/**
+ * Poll MinerU Cloud API until task completes or timeout
+ */
+async function pollTaskUntilComplete(
+  apiBase: string,
+  apiKey: string,
+  taskId: string,
+  timeoutMs: number,
+  intervalMs: number,
+): Promise<Record<string, unknown>> {
+  const startTime = Date.now();
+  let lastError: Error | null = null;
+
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const response = await fetch(`${apiBase}/${taskId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(`[MinerU Cloud] Task not found: ${taskId}`);
+        }
+        const errorText = await response.text().catch(() => response.statusText);
+        throw new Error(
+          `[MinerU Cloud] Status check failed (${response.status}): ${errorText}`,
+        );
+      }
+
+      const json = await response.json();
+      const status = json.status || json.state;
+
+      // Common MinerU statuses: queued, processing, completed, failed
+      if (status === 'completed' || status === 'success') {
+        return json;
+      }
+
+      if (status === 'failed' || status === 'error') {
+        throw new Error(
+          `[MinerU Cloud] Task failed: ${json.error || json.message || 'unknown error'}`,
+        );
+      }
+
+      log.debug(`[MinerU Cloud] Task ${taskId} status: ${status}`);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      // Continue polling on transient errors
+      log.debug(`[MinerU Cloud] Poll error (will retry): ${lastError.message}`);
+    }
+
+    // Wait before next poll
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  throw new Error(
+    `[MinerU Cloud] Task polling timeout (${timeoutMs}ms) for task ${taskId}. ` +
+      `Last error: ${lastError?.message || 'no response'}`,
+  );
+}
+
+/** Extract ParsedPdfContent from MinerU Cloud API result */
+function extractMinerUCloudResult(
+  taskResult: Record<string, unknown>,
+  taskId: string,
+): ParsedPdfContent {
+  // MinerU Cloud typically returns: { id, status, data: { content, images, ... } }
+  const data = (taskResult.data as Record<string, unknown>) || taskResult;
+
+  // Extract markdown/content text
+  const markdown: string =
+    (data.content as string) ||
+    (data.md_content as string) ||
+    (data.markdown as string) ||
+    '';
+
+  // Extract images (can be in various formats)
+  const imageData: Record<string, string> = {};
+  if (data.images && typeof data.images === 'object') {
+    Object.entries(data.images as Record<string, string>).forEach(([key, value]) => {
+      imageData[key] = value.startsWith('data:') ? value : `data:image/png;base64,${value}`;
+    });
+  }
+
+  // Parse content_list if present (similar to self-hosted MinerU)
+  const imageMetaLookup = new Map<string, { pageIdx: number; bbox: number[]; caption?: string }>();
+  let pageCount = 0;
+  const contentList =
+    typeof data.content_list === 'string'
+      ? JSON.parse(data.content_list as string)
+      : data.content_list;
+  if (Array.isArray(contentList)) {
+    const pages = new Set(
+      contentList
+        .map((item: Record<string, unknown>) => item.page_idx)
+        .filter((v: unknown) => v != null),
+    );
+    pageCount = pages.size;
+
+    for (const item of contentList) {
+      if (item.type === 'image' && item.img_path) {
+        const metaEntry = {
+          pageIdx: item.page_idx ?? 0,
+          bbox: item.bbox || [0, 0, 1000, 1000],
+          caption: Array.isArray(item.image_caption) ? item.image_caption[0] : undefined,
+        };
+        imageMetaLookup.set(item.img_path, metaEntry);
+        const basename = (item.img_path as string).split('/').pop();
+        if (basename && basename !== item.img_path) {
+          imageMetaLookup.set(basename, metaEntry);
+        }
+      }
+    }
+  }
+
+  // Build image mapping and pdfImages array
+  const imageMapping: Record<string, string> = {};
+  const pdfImages: Array<{
+    id: string;
+    src: string;
+    pageNumber: number;
+    description?: string;
+    width?: number;
+    height?: number;
+  }> = [];
+
+  Object.entries(imageData).forEach(([key, base64Url], index) => {
+    const imageId = key.startsWith('img_') ? key : `img_${index + 1}`;
+    imageMapping[imageId] = base64Url;
+    const meta = imageMetaLookup.get(key) || imageMetaLookup.get(`images/${key}`);
+    pdfImages.push({
+      id: imageId,
+      src: base64Url,
+      pageNumber: meta ? meta.pageIdx + 1 : 0,
+      description: meta?.caption,
+      width: meta ? meta.bbox[2] - meta.bbox[0] : undefined,
+      height: meta ? meta.bbox[3] - meta.bbox[1] : undefined,
+    });
+  });
+
+  const images = Object.values(imageMapping);
+
+  log.info(
+    `[MinerU Cloud] Parsed successfully: ${images.length} images, ` +
+      `${markdown.length} chars of markdown`,
+  );
+
+  return {
+    text: markdown,
+    images,
+    metadata: {
+      pageCount,
+      parser: 'mineru-cloud',
+      taskId, // Store task ID for debugging
       imageMapping,
       pdfImages,
     },
