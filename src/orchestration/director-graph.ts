@@ -10,39 +10,62 @@ import { buildOutlinePrompt, buildContentPrompt, buildActionsPrompt } from './pr
  * Inspired by OpenMAIC's architecture but simplified for CLI usage
  */
 const CourseGeneratorState = Annotation.Root({
-  // Input
   topic: Annotation<string>,
   content: Annotation<string>,
-  
-  // Processing
+
   outline: Annotation<Scene[]>({
     reducer: (prev, update) => update ?? prev,
     default: () => [],
   }),
-  
-  // Output
+
   classroom: Annotation<Classroom | null>({
     reducer: (prev, update) => update ?? prev,
     default: () => null,
   }),
-  
-  // Metadata
+
   progress: Annotation<GenerationProgress[]>({
     reducer: (prev, update) => [...prev, ...update],
     default: () => [],
   }),
-  
-  // Control
+
   shouldContinue: Annotation<boolean>,
 });
 
 type CourseGeneratorStateType = typeof CourseGeneratorState.State;
 
+function parseJsonResponse<T>(raw: string): T {
+  const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    const candidates: string[] = [];
+    const firstBracket = cleaned.indexOf('[');
+    const lastBracket = cleaned.lastIndexOf(']');
+    if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+      candidates.push(cleaned.slice(firstBracket, lastBracket + 1));
+    }
+
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      candidates.push(cleaned.slice(firstBrace, lastBrace + 1));
+    }
+
+    for (const candidate of candidates) {
+      try {
+        return JSON.parse(candidate) as T;
+      } catch {
+        // try next candidate
+      }
+    }
+
+    throw new Error('Failed to parse JSON from model response.');
+  }
+}
+
 // ============== Nodes ==============
 
-/**
- * Stage 1: Parse input and prepare outline generation
- */
 async function initNode(state: CourseGeneratorStateType): Promise<Partial<CourseGeneratorStateType>> {
   console.log(`\n${'='.repeat(50)}`);
   console.log('🎓 Stage 1: Initializing Course Generation');
@@ -61,9 +84,6 @@ async function initNode(state: CourseGeneratorStateType): Promise<Partial<Course
   };
 }
 
-/**
- * Stage 2: Generate course outline using LLM
- */
 async function outlineNode(
   state: CourseGeneratorStateType,
   llmAdapter: OpenClawLLMAdapter
@@ -73,7 +93,7 @@ async function outlineNode(
   console.log('='.repeat(50));
 
   const prompt = buildOutlinePrompt(state.topic, state.content);
-  
+
   try {
     const response = await llmAdapter.call({
       messages: [{ role: 'user', content: prompt.userPrompt }],
@@ -81,19 +101,7 @@ async function outlineNode(
       maxTokens: 4096,
     });
 
-    // Parse JSON response
-    let outline: Scene[] = [];
-    try {
-      const text = response.text
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-      outline = JSON.parse(text);
-    } catch (e) {
-      console.error('❌ Failed to parse outline JSON');
-      throw e;
-    }
-
+    const outline = parseJsonResponse<Scene[]>(response.text);
     console.log(`✅ Generated ${outline.length} scenes`);
 
     return {
@@ -111,9 +119,6 @@ async function outlineNode(
   }
 }
 
-/**
- * Stage 3: Generate detailed content for each scene
- */
 async function contentNode(
   state: CourseGeneratorStateType,
   llmAdapter: OpenClawLLMAdapter
@@ -130,16 +135,16 @@ async function contentNode(
     console.log(`\n📄 Processing scene ${i + 1}/${scenes.length}: ${scene.title}`);
 
     if (scene.type === 'quiz') {
-      // Quiz scenes: keep simple
       enrichedScenes.push({
         ...scene,
-        narration: '小測驗時間，請回答以下問題。',
+        narration: scene.narration || '小測驗時間，請回答以下問題。',
+        actions: scene.actions || [],
       });
       continue;
     }
 
     const prompt = buildContentPrompt(scene);
-    
+
     try {
       const response = await llmAdapter.call({
         messages: [{ role: 'user', content: prompt.userPrompt }],
@@ -147,26 +152,23 @@ async function contentNode(
         maxTokens: 2048,
       });
 
-      // Parse and merge content
-      const contentData = JSON.parse(
-        response.text
-          .replace(/```json\n?/g, '')
-          .replace(/```\n?/g, '')
-          .trim()
-      );
+      const contentData = parseJsonResponse<Partial<Scene>>(response.text);
 
       enrichedScenes.push({
         ...scene,
         ...contentData,
+        actions: contentData.actions || scene.actions || [],
       });
 
       console.log(`✅ Scene ${i + 1} content generated`);
     } catch (error) {
       console.warn(`⚠️  Failed to generate content for scene ${i + 1}, using defaults`);
-      enrichedScenes.push(scene);
+      enrichedScenes.push({
+        ...scene,
+        actions: scene.actions || [],
+      });
     }
 
-    // Update progress
     const progressPercent = 35 + Math.round((i / scenes.length) * 30);
     console.log(`Progress: ${progressPercent}%`);
   }
@@ -184,9 +186,6 @@ async function contentNode(
   };
 }
 
-/**
- * Stage 4: Generate speaker actions (whiteboard, speech, effects)
- */
 async function actionsNode(
   state: CourseGeneratorStateType,
   llmAdapter: OpenClawLLMAdapter
@@ -203,12 +202,15 @@ async function actionsNode(
     console.log(`\n🎬 Generating actions for scene ${i + 1}/${scenes.length}`);
 
     if (scene.type === 'quiz' || !scene.narration) {
-      scenesWithActions.push(scene);
+      scenesWithActions.push({
+        ...scene,
+        actions: scene.actions || [],
+      });
       continue;
     }
 
     const prompt = buildActionsPrompt(scene);
-    
+
     try {
       const response = await llmAdapter.call({
         messages: [{ role: 'user', content: prompt.userPrompt }],
@@ -216,12 +218,7 @@ async function actionsNode(
         maxTokens: 1024,
       });
 
-      const actionsData = JSON.parse(
-        response.text
-          .replace(/```json\n?/g, '')
-          .replace(/```\n?/g, '')
-          .trim()
-      );
+      const actionsData = parseJsonResponse<{ actions?: Scene['actions'] }>(response.text);
 
       scenesWithActions.push({
         ...scene,
@@ -231,7 +228,10 @@ async function actionsNode(
       console.log(`✅ Actions generated for scene ${i + 1}`);
     } catch (error) {
       console.warn(`⚠️  Failed to generate actions for scene ${i + 1}`);
-      scenesWithActions.push(scene);
+      scenesWithActions.push({
+        ...scene,
+        actions: scene.actions || [],
+      });
     }
   }
 
@@ -246,9 +246,6 @@ async function actionsNode(
   };
 }
 
-/**
- * Finalize: Create classroom structure
- */
 async function finalizeNode(
   state: CourseGeneratorStateType
 ): Promise<Partial<CourseGeneratorStateType>> {
@@ -260,7 +257,10 @@ async function finalizeNode(
     id: `course_${Date.now()}`,
     title: state.topic,
     topic: state.topic,
-    scenes: state.outline,
+    scenes: state.outline.map((scene) => ({
+      ...scene,
+      actions: scene.actions || [],
+    })),
     metadata: {
       generatedAt: new Date().toISOString(),
       totalDuration: state.outline.reduce((acc, s) => acc + (s.duration ?? 120), 0),
@@ -281,19 +281,19 @@ async function finalizeNode(
 // ============== Graph Builder ==============
 
 export async function buildCourseGeneratorGraph(llmAdapter: OpenClawLLMAdapter) {
-  const workflow = new StateGraph(CourseGeneratorState);
+  const workflow = new StateGraph(CourseGeneratorState as any) as any;
 
   workflow.addNode('init', initNode);
-  workflow.addNode('outline', async (state) => outlineNode(state, llmAdapter));
-  workflow.addNode('content', async (state) => contentNode(state, llmAdapter));
-  workflow.addNode('actions', async (state) => actionsNode(state, llmAdapter));
+  workflow.addNode('generateOutline', async (state: CourseGeneratorStateType) => outlineNode(state, llmAdapter));
+  workflow.addNode('generateContent', async (state: CourseGeneratorStateType) => contentNode(state, llmAdapter));
+  workflow.addNode('generateActions', async (state: CourseGeneratorStateType) => actionsNode(state, llmAdapter));
   workflow.addNode('finalize', finalizeNode);
 
   workflow.addEdge(START, 'init');
-  workflow.addEdge('init', 'outline');
-  workflow.addEdge('outline', 'content');
-  workflow.addEdge('content', 'actions');
-  workflow.addEdge('actions', 'finalize');
+  workflow.addEdge('init', 'generateOutline');
+  workflow.addEdge('generateOutline', 'generateContent');
+  workflow.addEdge('generateContent', 'generateActions');
+  workflow.addEdge('generateActions', 'finalize');
   workflow.addEdge('finalize', END);
 
   return workflow.compile();

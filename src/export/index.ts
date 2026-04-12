@@ -26,8 +26,10 @@ export async function generatePPTX(
   const prs = new PptxGenJS();
   prs.defineLayout({
     name: 'LAYOUT1',
-    master: 'MASTER1',
+    width: SLIDE_WIDTH,
+    height: SLIDE_HEIGHT,
   });
+  prs.layout = 'LAYOUT1';
 
   console.log(`Generating PPTX with ${classroom.scenes.length} slides...`);
 
@@ -100,7 +102,7 @@ export async function generatePPTX(
 
   // Save
   try {
-    prs.writeFile({ fileName: outputPath });
+    await prs.writeFile({ fileName: outputPath });
     console.log(`✅ PPTX saved: ${outputPath}`);
   } catch (error) {
     console.error(`❌ Failed to save PPTX: ${error}`);

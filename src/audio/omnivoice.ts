@@ -13,7 +13,7 @@ export async function generateNarrationWithOmniVoice(
   audioPath: string,
   config: Partial<Config> = {}
 ): Promise<string> {
-  const ovc = config.omnivoice || {};
+  const ovc = (config.omnivoice ?? {}) as Partial<NonNullable<Config['omnivoice']>>;
   
   // Ensure output directory exists
   const dir = dirname(audioPath);

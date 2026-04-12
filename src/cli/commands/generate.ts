@@ -5,7 +5,51 @@ import { buildCourseGeneratorGraph } from '../../orchestration/director-graph.js
 import { createLLMAdapter } from '../../orchestration/llm-adapter.js';
 import { generateCourseNarration } from '../../audio/omnivoice.js';
 import { generatePPTX, generateJSON, generateHTML } from '../../export/index.js';
-import type { ParsedInput, Config } from '../../types.js';
+import type { ParsedInput, Config, Classroom, Scene } from '../../types.js';
+
+function buildMockClassroom(parsedInput: ParsedInput): Classroom {
+  const scenes: Scene[] = [
+    {
+      id: 'scene_001',
+      type: 'slide',
+      title: `${parsedInput.title} 簡介`,
+      keyPoints: ['介紹主題', '學習目標', '課程概覽'],
+      narration: `歡迎來到 ${parsedInput.title} 的課程。在這堂課中，我們將一起探索相關的知識。`,
+      actions: [],
+      duration: 120,
+    },
+    {
+      id: 'scene_002',
+      type: 'slide',
+      title: '核心概念',
+      keyPoints: ['定義', '特性', '應用'],
+      narration: '讓我們先了解基本的概念定義。',
+      actions: [],
+      duration: 180,
+    },
+    {
+      id: 'scene_003',
+      type: 'quiz',
+      title: '小測驗',
+      keyPoints: ['複習內容', '自我檢驗'],
+      narration: '現在進行小測驗，檢查您是否理解了。',
+      actions: [],
+      duration: 120,
+    },
+  ];
+
+  return {
+    id: `course_${Date.now()}`,
+    title: parsedInput.title,
+    topic: parsedInput.title,
+    scenes,
+    metadata: {
+      sourceFile: parsedInput.metadata.sourceFile,
+      generatedAt: new Date().toISOString(),
+      totalDuration: scenes.reduce((acc, s) => acc + (s.duration ?? 120), 0),
+    },
+  };
+}
 
 export const generateCommand = {
   command: 'generate <input>',
@@ -48,7 +92,6 @@ export const generateCommand = {
       let parsedInput: ParsedInput;
 
       if (fs.existsSync(input)) {
-        // File input
         const content = fs.readFileSync(input, 'utf-8');
         const title = argv.topic || path.basename(input, path.extname(input));
         parsedInput = {
@@ -61,7 +104,6 @@ export const generateCommand = {
           },
         };
       } else {
-        // Treat as topic/prompt
         parsedInput = {
           title: input,
           content: input,
@@ -79,19 +121,7 @@ export const generateCommand = {
       // ============ Initialize LLM Adapter ============
       console.log(`🧠 Initializing LLM Adapter`);
       const llmAdapter = createLLMAdapter();
-
-      // Check for Anthropic API key (for fallback mode)
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) {
-        console.warn('⚠️  No ANTHROPIC_API_KEY in .env.local');
-        console.log('   When used within OpenClaw, the LLM will be injected.');
-        console.log('   For standalone use, install: npm install @anthropic-ai/sdk\n');
-        
-        // For demo, we'll skip LLM and create a mock outline
-        console.log('📝 Demo mode: Creating mock course outline...\n');
-      } else {
-        console.log(`✅ Using Anthropic API\n`);
-      }
+      console.log('✅ Using OpenClaw local model bridge\n');
 
       // ============ Build Course Generator Graph ============
       console.log(`🔗 Building course generator graph...`);
@@ -110,50 +140,22 @@ export const generateCommand = {
 
       console.log(`\n🚀 Starting course generation...\n`);
 
-      // For now, create mock output (since LLM may not be available)
-      const mockOutline = [
-        {
-          id: 'scene_001',
-          type: 'slide' as const,
-          title: `${parsedInput.title} 簡介`,
-          keyPoints: ['介紹主題', '學習目標', '課程概覽'],
-          narration: `歡迎來到 ${parsedInput.title} 的課程。在這堂課中，我們將一起探索相關的知識。`,
-          actions: [],
-          duration: 120,
-        },
-        {
-          id: 'scene_002',
-          type: 'slide' as const,
-          title: '核心概念',
-          keyPoints: ['定義', '特性', '應用'],
-          narration: '讓我們先了解基本的概念定義。',
-          actions: [],
-          duration: 180,
-        },
-        {
-          id: 'scene_003',
-          type: 'quiz' as const,
-          title: '小測驗',
-          keyPoints: ['複習內容', '自我檢驗'],
-          narration: '現在進行小測驗，檢查您是否理解了。',
-          actions: [],
-          duration: 120,
-        },
-      ];
+      let classroom: Classroom;
 
-      const classroom = {
-        id: `course_${Date.now()}`,
-        title: parsedInput.title,
-        topic: parsedInput.title,
-        scenes: mockOutline,
-        metadata: {
-          sourceFile: parsedInput.metadata.sourceFile,
-          generatedAt: new Date().toISOString(),
-          totalDuration: mockOutline.reduce((acc, s) => acc + (s.duration ?? 120), 0),
-        },
-      };
+      try {
+        const finalState = await graph.invoke(initialState);
+        classroom = finalState.classroom as Classroom;
 
-      console.log(`✅ Course generated with ${classroom.scenes.length} scenes`);
+        if (!classroom || !Array.isArray(classroom.scenes) || classroom.scenes.length === 0) {
+          throw new Error('Graph completed without a valid classroom payload.');
+        }
+
+        console.log(`✅ Course generated with ${classroom.scenes.length} scenes`);
+      } catch (error) {
+        console.warn(`⚠️  Real generation failed, falling back to mock course: ${error instanceof Error ? error.message : String(error)}`);
+        classroom = buildMockClassroom(parsedInput);
+        console.log(`✅ Fallback course generated with ${classroom.scenes.length} scenes`);
+      }
 
       // ============ Generate Audio ============
       if (formats.includes('pptx') || formats.includes('html')) {
