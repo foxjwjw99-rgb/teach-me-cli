@@ -1021,6 +1021,24 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
       },
     ],
   },
+
+  'fox-brain': {
+    id: 'fox-brain',
+    name: 'Fox Brain',
+    type: 'openai',
+    defaultBaseUrl: undefined, // Resolved from FOX_BRAIN_API_URL at runtime
+    requiresApiKey: true, // May be overridden; see resolveApiKey
+    icon: '/logos/fox.svg',
+    models: [
+      {
+        id: 'fox-brain',
+        name: 'Fox Brain (OpenAI-compatible)',
+        contextWindow: 200000,
+        outputWindow: 128000,
+        capabilities: { streaming: true, tools: true, vision: false },
+      },
+    ],
+  },
 };
 
 /**

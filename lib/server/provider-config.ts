@@ -50,6 +50,7 @@ const LLM_ENV_MAP: Record<string, string> = {
   DOUBAO: 'doubao',
   GROK: 'grok',
   OLLAMA: 'ollama',
+  FOX_BRAIN: 'fox-brain',
 };
 
 const TTS_ENV_MAP: Record<string, string> = {

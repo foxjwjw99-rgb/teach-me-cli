@@ -17,7 +17,8 @@ export type BuiltInProviderId =
   | 'siliconflow'
   | 'doubao'
   | 'grok'
-  | 'ollama';
+  | 'ollama'
+  | 'fox-brain';
 
 /**
  * Provider ID (built-in or custom)
