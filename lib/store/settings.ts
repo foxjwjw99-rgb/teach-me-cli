@@ -337,7 +337,6 @@ const getDefaultPDFConfig = () => ({
   pdfProviderId: 'unpdf' as PDFProviderId,
   pdfProvidersConfig: {
     unpdf: { apiKey: '', baseUrl: '', enabled: true },
-    mineru: { apiKey: '', baseUrl: '', enabled: false },
   } as Record<PDFProviderId, { apiKey: string; baseUrl: string; enabled: boolean }>,
 });
 
@@ -1170,10 +1169,8 @@ export const useSettingsStore = create<SettingsState>()(
               let autoVideoEnabled: boolean | undefined;
 
               if (!state.autoConfigApplied) {
-                // PDF: unpdf → mineru if server has it
-                if (newPDFConfig.mineru?.isServerConfigured && state.pdfProviderId === 'unpdf') {
-                  autoPdfProvider = 'mineru' as PDFProviderId;
-                }
+                // PDF: keep the built-in parser as the default hosted-friendly option.
+                autoPdfProvider = 'unpdf' as PDFProviderId;
 
                 // TTS: select first server provider if current is not server-configured
                 const serverTtsIds = Object.keys(data.tts) as TTSProviderId[];

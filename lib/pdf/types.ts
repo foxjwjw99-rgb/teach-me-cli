@@ -4,8 +4,11 @@
 
 /**
  * PDF Provider IDs
+ *
+ * Product-facing OpenMAIC currently exposes a single built-in parser so the
+ * hosted experience stays zero-setup.
  */
-export type PDFProviderId = 'unpdf' | 'mineru' | 'mineru-cloud';
+export type PDFProviderId = 'unpdf';
 
 /**
  * PDF Provider Configuration
@@ -16,7 +19,7 @@ export interface PDFProviderConfig {
   requiresApiKey: boolean;
   baseUrl?: string;
   icon?: string;
-  features: string[]; // ['text', 'images', 'tables', 'formulas', 'layout-analysis', etc.]
+  features: string[]; // ['text', 'images', 'metadata', etc.]
 }
 
 /**
@@ -26,10 +29,6 @@ export interface PDFParserConfig {
   providerId: PDFProviderId;
   apiKey?: string;
   baseUrl?: string;
-  /** For MinerU cloud: polling timeout in ms (default 300000 = 5min) */
-  pollingTimeoutMs?: number;
-  /** For MinerU cloud: polling interval in ms (default 2000 = 2sec) */
-  pollingIntervalMs?: number;
 }
 
 // Note: ParsedPdfContent is imported from @/lib/types/pdf to avoid duplication

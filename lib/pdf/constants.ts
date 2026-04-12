@@ -7,30 +7,17 @@ import type { PDFProviderId, PDFProviderConfig } from './types';
 
 /**
  * PDF Provider Registry
+ *
+ * Keep the default OpenMAIC experience zero-setup: use the built-in parser and
+ * do not expose self-hosted / local PDF parsing providers in the product UI.
  */
 export const PDF_PROVIDERS: Record<PDFProviderId, PDFProviderConfig> = {
   unpdf: {
     id: 'unpdf',
-    name: 'unpdf',
+    name: 'Built-in PDF Parser',
     requiresApiKey: false,
     icon: '/logos/unpdf.svg',
     features: ['text', 'images', 'metadata'],
-  },
-
-  mineru: {
-    id: 'mineru',
-    name: 'MinerU (Self-Hosted)',
-    requiresApiKey: false,
-    icon: '/logos/mineru.png',
-    features: ['text', 'images', 'tables', 'formulas', 'layout-analysis'],
-  },
-
-  'mineru-cloud': {
-    id: 'mineru-cloud',
-    name: 'MinerU Cloud API',
-    requiresApiKey: true,
-    icon: '/logos/mineru.png',
-    features: ['text', 'images', 'tables', 'formulas', 'layout-analysis'],
   },
 };
 
