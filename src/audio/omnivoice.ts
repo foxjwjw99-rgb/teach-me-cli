@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 import type { Config } from '../types.js';
@@ -72,6 +72,15 @@ export async function generateCourseNarration(
   outputDir: string,
   config: Partial<Config> = {}
 ): Promise<Array<{ sceneId: string; audioFile: string; success: boolean }>> {
+  const omnivoiceCheck = spawnSync('sh', ['-lc', 'command -v omnivoice-local >/dev/null 2>&1'], {
+    stdio: 'ignore',
+  });
+
+  if (omnivoiceCheck.status !== 0) {
+    console.warn('⚠️  OmniVoice not found in PATH, skipping audio generation.');
+    return scenes.map((scene) => ({ sceneId: scene.id, audioFile: '', success: false }));
+  }
+
   if (!existsSync(outputDir)) {
     mkdirSync(outputDir, { recursive: true });
   }
@@ -93,7 +102,7 @@ export async function generateCourseNarration(
         return { sceneId: scene.id, audioFile: '', success: false };
       }
 
-      const audioFile = `${scene.id.replace('scene_', 'audio_')}.mp3`;
+      const audioFile = `${scene.id}.mp3`;
       const audioPath = `${outputDir}/${audioFile}`;
 
       try {

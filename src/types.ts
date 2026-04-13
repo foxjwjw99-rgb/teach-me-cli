@@ -31,21 +31,77 @@ export const ActionSchema = z.object({
 });
 export type Action = z.infer<typeof ActionSchema>;
 
+export const ContentSectionSchema = z.object({
+  heading: z.string(),
+  body: z.string().optional(),
+  bullets: z.array(z.string()).default([]),
+});
+export type ContentSection = z.infer<typeof ContentSectionSchema>;
+
+export const SceneContentSchema = z.object({
+  text: z.string().optional(),
+  html: z.string().optional(),
+  imageUrl: z.string().optional(),
+  callout: z.string().optional(),
+  sections: z.array(ContentSectionSchema).default([]),
+});
+export type SceneContent = z.infer<typeof SceneContentSchema>;
+
+export const DiscussionSchema = z.object({
+  prompt: z.string(),
+  participants: z.array(z.string()).default([]),
+  expectedTakeaway: z.string().optional(),
+});
+export type Discussion = z.infer<typeof DiscussionSchema>;
+
+export const QuizKindSchema = z.enum(['single_choice', 'multiple_choice', 'short_answer']);
+export type QuizKind = z.infer<typeof QuizKindSchema>;
+
+export const QuizSchema = z.object({
+  kind: QuizKindSchema.default('single_choice'),
+  question: z.string(),
+  options: z.array(z.string()).optional(),
+  answer: z.union([z.string(), z.array(z.string())]).optional(),
+  explanation: z.string().optional(),
+});
+export type QuizConfig = z.infer<typeof QuizSchema>;
+
+export const InteractiveSchema = z.object({
+  format: z.enum(['simulation', 'exercise', 'demo', 'worksheet']).default('exercise'),
+  instructions: z.string(),
+  initialState: z.string().optional(),
+  expectedOutcome: z.string().optional(),
+});
+export type InteractiveConfig = z.infer<typeof InteractiveSchema>;
+
+export const PblSchema = z.object({
+  role: z.string().optional(),
+  challenge: z.string(),
+  deliverable: z.string().optional(),
+  milestones: z.array(z.string()).default([]),
+});
+export type PblConfig = z.infer<typeof PblSchema>;
+
 export const SceneSchema = z.object({
   id: z.string(),
   type: SceneTypeSchema,
   title: z.string(),
+  description: z.string().optional(),
+  learningObjectives: z.array(z.string()).default([]),
   narration: z.string().optional(),
-  keyPoints: z.array(z.string()),
+  teacherNotes: z.string().optional(),
+  keyPoints: z.array(z.string()).default([]),
   actions: z.array(ActionSchema).default([]),
   duration: z.number().optional(),
-  content: z.object({
-    text: z.string().optional(),
-    html: z.string().optional(),
-    imageUrl: z.string().optional(),
-  }).optional(),
+  content: SceneContentSchema.optional(),
+  discussion: DiscussionSchema.optional(),
+  quiz: QuizSchema.optional(),
+  interactive: InteractiveSchema.optional(),
+  pbl: PblSchema.optional(),
 });
-export type Scene = z.infer<typeof SceneSchema>;
+export type Scene = Omit<z.infer<typeof SceneSchema>, 'learningObjectives'> & {
+  learningObjectives?: string[];
+};
 
 export const ClassroomSchema = z.object({
   id: z.string(),
@@ -60,7 +116,9 @@ export const ClassroomSchema = z.object({
     totalDuration: z.number().optional(),
   }),
 });
-export type Classroom = z.infer<typeof ClassroomSchema>;
+export type Classroom = Omit<z.infer<typeof ClassroomSchema>, 'scenes'> & {
+  scenes: Scene[];
+};
 
 // ============== LLM Request/Response ==============
 
@@ -88,10 +146,11 @@ export type LLMResponse = z.infer<typeof LLMResponseSchema>;
 
 // ============== Generation Progress ==============
 
-export type GenerationStage = 
+export type GenerationStage =
   | 'init'
   | 'parse_input'
   | 'generate_outline'
+  | 'generate_scene_details'
   | 'generate_content'
   | 'generate_images'
   | 'generate_actions'
@@ -126,7 +185,7 @@ export const ConfigSchema = z.object({
     retries: z.number().default(2),
   }).optional(),
   output: z.object({
-    formats: z.array(z.enum(['pptx', 'json', 'html'])).default(['pptx', 'json']),
+    formats: z.array(z.enum(['pptx', 'json', 'html', 'mp4'])).default(['pptx', 'json']),
     dir: z.string().default('./output'),
   }).optional(),
   llm: z.object({

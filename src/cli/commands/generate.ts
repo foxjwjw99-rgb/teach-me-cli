@@ -4,8 +4,13 @@ import * as path from 'path';
 import { buildCourseGeneratorGraph } from '../../orchestration/director-graph.js';
 import { createLLMAdapter } from '../../orchestration/llm-adapter.js';
 import { generateCourseNarration } from '../../audio/omnivoice.js';
-import { generatePPTX, generateJSON, generateHTML } from '../../export/index.js';
+import { generatePPTX, generateJSON, generateHTML, generateMP4 } from '../../export/index.js';
 import type { ParsedInput, Config, Classroom, Scene } from '../../types.js';
+
+/** Return true when only JSON output is requested (no rich formats that need actions). */
+function isJsonOnly(formats: string[]): boolean {
+  return formats.every((f) => f === 'json');
+}
 
 function buildMockClassroom(parsedInput: ParsedInput): Classroom {
   const scenes: Scene[] = [
@@ -13,17 +18,41 @@ function buildMockClassroom(parsedInput: ParsedInput): Classroom {
       id: 'scene_001',
       type: 'slide',
       title: `${parsedInput.title} 簡介`,
+      description: '建立整堂課的脈絡，先知道會學什麼、為什麼重要。',
+      learningObjectives: ['理解課程主軸', '掌握本次學習路徑'],
       keyPoints: ['介紹主題', '學習目標', '課程概覽'],
-      narration: `歡迎來到 ${parsedInput.title} 的課程。在這堂課中，我們將一起探索相關的知識。`,
+      narration: `歡迎來到 ${parsedInput.title} 的課程。我們會先建立整體地圖，讓你知道這堂課準備帶你看到什麼重點。`,
+      teacherNotes: '先用直覺例子開場，再快速說明這堂課的節奏。',
+      content: {
+        text: '先看全貌，再進入細節。',
+        callout: '先知道路線，學起來會更穩。',
+        sections: [
+          { heading: '課程焦點', body: `這堂課會聚焦 ${parsedInput.title} 的核心概念。`, bullets: ['先建立基本理解', '再看應用或延伸'] },
+        ],
+      },
       actions: [],
       duration: 120,
     },
     {
       id: 'scene_002',
-      type: 'slide',
-      title: '核心概念',
+      type: 'interactive',
+      title: '核心概念練習',
+      description: '把抽象概念轉成可操作的步驟。',
+      learningObjectives: ['能自己描述核心概念', '能嘗試一步步推演'],
       keyPoints: ['定義', '特性', '應用'],
-      narration: '讓我們先了解基本的概念定義。',
+      narration: '接下來不要只看定義，我們試著把概念拆成可以操作的步驟。',
+      teacherNotes: '鼓勵學生先說自己的理解，再補正。',
+      interactive: {
+        format: 'exercise',
+        instructions: '請先用自己的話解釋這個概念，然後舉一個例子。',
+        initialState: '從最直覺的理解開始',
+        expectedOutcome: '能用自己的例子說明概念',
+      },
+      discussion: {
+        prompt: '如果要教朋友，你會怎麼解釋？',
+        participants: ['老師', '學生'],
+        expectedTakeaway: '把概念從記憶變成可表達。',
+      },
       actions: [],
       duration: 180,
     },
@@ -31,8 +60,18 @@ function buildMockClassroom(parsedInput: ParsedInput): Classroom {
       id: 'scene_003',
       type: 'quiz',
       title: '小測驗',
+      description: '快速確認前面兩段有沒有真正理解。',
+      learningObjectives: ['能辨識正確觀念', '能說明選項差異'],
       keyPoints: ['複習內容', '自我檢驗'],
-      narration: '現在進行小測驗，檢查您是否理解了。',
+      narration: '現在來做一個短測驗，不是要背答案，而是要確認你真的抓到重點。',
+      teacherNotes: '先讓學生作答，再講解析，不要一開始就公布答案。',
+      quiz: {
+        kind: 'single_choice',
+        question: `${parsedInput.title} 這堂課目前最重要的學習目標是什麼？`,
+        options: ['先建立整體理解', '只背定義', '只看進階內容', '跳過基本觀念'],
+        answer: '先建立整體理解',
+        explanation: '先建立整體理解，後續細節才有位置可放。',
+      },
       actions: [],
       duration: 120,
     },
@@ -42,6 +81,7 @@ function buildMockClassroom(parsedInput: ParsedInput): Classroom {
     id: `course_${Date.now()}`,
     title: parsedInput.title,
     topic: parsedInput.title,
+    description: `以 ${parsedInput.title} 為主題的示範課程。`,
     scenes,
     metadata: {
       sourceFile: parsedInput.metadata.sourceFile,
@@ -68,7 +108,7 @@ export const generateCommand = {
       })
       .option('format', {
         alias: 'f',
-        describe: 'Export formats (pptx,json,html)',
+        describe: 'Export formats: pptx, json, html, mp4 (comma-separated)',
         type: 'string',
         default: 'pptx,json',
       })
@@ -76,6 +116,20 @@ export const generateCommand = {
         alias: 't',
         describe: 'Override topic (if input is a file)',
         type: 'string',
+      })
+      .option('actions', {
+        describe:
+          'Generate per-scene speaker actions (whiteboard draws, spotlights, etc.).\n' +
+          'Defaults to true for pptx/html output, false for json-only (saves N model calls).',
+        type: 'boolean',
+        // undefined = auto-detect based on format
+      })
+      .option('fast', {
+        describe:
+          'Fast/quick mode: skip content enrichment AND action generation.\n' +
+          'Uses only the outline LLM call, then exports immediately. Ideal for JSON drafts.',
+        type: 'boolean',
+        default: false,
       });
   },
 
@@ -84,6 +138,22 @@ export const generateCommand = {
       const input = argv.input as string;
       const outputDir = path.resolve(argv.output);
       const formats = (argv.format as string).split(',').map((f) => f.trim());
+      const fastMode = argv.fast as boolean;
+
+      // Resolve skipActions:
+      //   --fast        → skip everything (content + actions)
+      //   --actions     → explicit opt-in for actions
+      //   --no-actions  → explicit opt-out
+      //   (default)     → skip if json-only, include if pptx/html present
+      const skipContent = fastMode;
+      let skipActions: boolean;
+      if (fastMode) {
+        skipActions = true;
+      } else if (argv.actions !== undefined) {
+        skipActions = !(argv.actions as boolean);
+      } else {
+        skipActions = isJsonOnly(formats);
+      }
 
       console.log(`\n🎓 teach-me CLI v2.0\n`);
 
@@ -124,8 +194,13 @@ export const generateCommand = {
       console.log('✅ Using OpenClaw local model bridge\n');
 
       // ============ Build Course Generator Graph ============
-      console.log(`🔗 Building course generator graph...`);
-      const graph = await buildCourseGeneratorGraph(llmAdapter);
+      const modeLabel = fastMode
+        ? 'fast (outline only)'
+        : skipActions
+        ? 'lean (outline + content)'
+        : 'full (outline + content + actions)';
+      console.log(`🔗 Building course generator graph [${modeLabel}]...`);
+      const graph = await buildCourseGeneratorGraph(llmAdapter, { skipContent, skipActions });
       console.log(`✅ Graph built\n`);
 
       // ============ Execute Graph ============
@@ -158,7 +233,7 @@ export const generateCommand = {
       }
 
       // ============ Generate Audio ============
-      if (formats.includes('pptx') || formats.includes('html')) {
+      if (formats.includes('pptx') || formats.includes('html') || formats.includes('mp4')) {
         const audioDir = path.join(outputDir, 'audio');
         try {
           console.log(`\n🎙️  Generating audio...`);
@@ -214,6 +289,24 @@ export const generateCommand = {
           exports.push(htmlPath);
         } catch (error) {
           console.error(`❌ HTML export failed: ${error}`);
+        }
+      }
+
+      if (formats.includes('mp4')) {
+        const mp4Path = path.join(outputDir, `${parsedInput.title}.mp4`);
+        const audioDir = path.join(outputDir, 'audio');
+        const narrationDir = path.join(outputDir, 'narrations');
+        // Prefer whichever audio subdirectory actually exists
+        const resolvedAudioDir = fs.existsSync(narrationDir)
+          ? narrationDir
+          : fs.existsSync(audioDir)
+          ? audioDir
+          : undefined;
+        try {
+          await generateMP4(classroom, mp4Path, resolvedAudioDir);
+          exports.push(mp4Path);
+        } catch (error) {
+          console.error(`❌ MP4 export failed: ${error}`);
         }
       }
 
