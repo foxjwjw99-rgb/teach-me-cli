@@ -166,14 +166,16 @@ export const generateCommand = {
       spinner.succeed(`輸入解析完成: "${parsedInput.title}" (${parsedInput.content.length} 字元)`);
 
       // ============ Initialize LLM Adapter ============
-      const apiKey = process.env.ANTHROPIC_API_KEY;
       const llmAdapter = createLLMAdapter();
 
       // ============ Execute Pipeline ============
       let classroom: Classroom;
 
-      if (apiKey) {
-        console.log(`🧠 使用 Anthropic API (並行度: ${concurrency})\n`);
+      if (llmAdapter.hasModel()) {
+        const modeLabel = llmAdapter.mode === 'openclaw'
+          ? `OpenClaw Gateway (${process.env.OPENCLAW_MODEL || 'github-copilot/claude-haiku-4.5'})`
+          : 'Anthropic API (claude-opus-4-5)';
+        console.log(`🧠 使用 ${modeLabel} (並行度: ${concurrency})\n`);
 
         const graphSpinner = createSpinner('建立課程生成圖...');
         graphSpinner.start();
@@ -194,7 +196,7 @@ export const generateCommand = {
         classroom = finalState.classroom!;
         console.log(`\n✅ 課程生成完成，共 ${classroom.scenes.length} 個場景`);
       } else {
-        console.warn('\n⚠️  [DEMO MODE] 未找到 ANTHROPIC_API_KEY');
+        console.warn('\n⚠️  [DEMO MODE] 未找到 ANTHROPIC_API_KEY 或 OPENCLAW_GATEWAY_TOKEN');
         console.warn('   輸出為示範用佔位內容，非真實 AI 生成。');
         console.warn('   請在 .env.local 設定 ANTHROPIC_API_KEY 以使用完整功能。\n');
         classroom = buildMockClassroom(parsedInput);

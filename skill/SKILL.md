@@ -1,3 +1,9 @@
+---
+name: teach-me
+description: Generate interactive courses (PPTX, JSON, HTML + audio narration) from any topic string or document file using teach-me-cli. Powered by OpenClaw gateway or Anthropic API.
+user-invocable: true
+---
+
 # /teach-me — Generate Beautiful Courses Instantly
 
 When this skill is invoked with `/teach-me [args]`, follow these steps exactly.
