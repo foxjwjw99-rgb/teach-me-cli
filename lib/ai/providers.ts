@@ -1028,7 +1028,7 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     type: 'openai',
     defaultBaseUrl: undefined, // Resolved from FOX_BRAIN_API_URL at runtime
     requiresApiKey: true, // May be overridden; see resolveApiKey
-    icon: '/logos/fox.svg',
+    icon: '/avatars/assistant.svg',
     models: [
       {
         id: 'fox-brain',
