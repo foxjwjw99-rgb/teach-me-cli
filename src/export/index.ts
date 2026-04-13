@@ -1,3 +1,4 @@
+export { generateGraph } from './graph.js';
 import PptxGenJS from 'pptxgenjs';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';

@@ -4,7 +4,7 @@ import * as path from 'path';
 import { buildCourseGeneratorGraph } from '../../orchestration/director-graph.js';
 import { createLLMAdapter } from '../../orchestration/llm-adapter.js';
 import { generateCourseNarration } from '../../audio/omnivoice.js';
-import { generatePPTX, generateJSON, generateHTML } from '../../export/index.js';
+import { generatePPTX, generateJSON, generateHTML, generateGraph } from '../../export/index.js';
 import type { ParsedInput, Config, Classroom } from '../../types.js';
 
 // ============ Inline Spinner ============
@@ -102,7 +102,7 @@ export const generateCommand = {
       })
       .option('format', {
         alias: 'f',
-        describe: 'Export formats (pptx,json,html)',
+        describe: 'Export formats (pptx,json,html,graph)',
         type: 'string',
         default: 'pptx,json',
       })
@@ -269,6 +269,19 @@ export const generateCommand = {
           s.succeed('HTML 匯出完成');
         } catch (error) {
           s.fail(`HTML 匯出失敗: ${error}`);
+        }
+      }
+
+      if (formats.includes('graph')) {
+        const graphPath = path.join(outputDir, 'graph.html');
+        const s = createSpinner('匯出知識圖譜...');
+        s.start();
+        try {
+          await generateGraph(classroom, graphPath);
+          exports.push(graphPath);
+          s.succeed('知識圖譜匯出完成');
+        } catch (error) {
+          s.fail(`知識圖譜匯出失敗: ${error}`);
         }
       }
 
