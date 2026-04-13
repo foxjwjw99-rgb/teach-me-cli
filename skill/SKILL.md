@@ -1,88 +1,51 @@
 # /teach-me — Generate Beautiful Courses Instantly
 
-_Powered by teach-me-cli, your personal course generation engine._
+When this skill is invoked with `/teach-me [args]`, follow these steps exactly.
 
-Use teach-me-cli to generate interactive courses from any topic or document.
+## Step 1: Parse Input
 
-## Usage
+The `args` string after `/teach-me` is the `<input>`. It can be:
+- A **topic string** (e.g., `"Teach me quantum computing"`)
+- A **file path** (PDF, Markdown, or TXT — resolve to absolute path)
 
-```
-/teach-me <topic-or-file>
-```
+Supported optional flags the user may append:
+- `--output <dir>` — output directory (default: `./output` inside CLI root)
+- `--format pptx,json,html` — comma-separated export formats (default: `pptx,json,html`)
+- `--concurrency <n>` — parallel LLM calls (default: 3)
 
-### Examples
+If no args are provided, ask the user: "Please tell me the topic or file path for the course."
 
-```
-/teach-me "Teach me quantum computing"
-/teach-me "Help me create a course from this PDF"
-/teach-me "Machine learning for beginners"
-```
+## Step 2: Run the CLI via Bash
 
-## What You Get
-
-✨ **Professional Course**
-- 📚 Structured 12-20 scene outline
-- 📊 Beautiful PowerPoint slides (editable)
-- 🎙️ Natural narration with OmniVoice
-- 🌐 Interactive HTML player
-
-## How It Works
-
-1. **Send your topic** — Plain text or upload a file (PDF, Markdown)
-2. **AI generates outline** — 4-stage pipeline (outline → content → actions → audio)
-3. **Get your course** — Download PPTX, JSON, or view as HTML
-
-## Installation
+Use the Bash tool to run:
 
 ```bash
-clawhub install teach-me-cli
+cd /Users/huli/Desktop/teach-me-cli && npx tsx src/cli/index.ts generate "<input>" --format pptx,json,html
 ```
 
-Or manually copy to `~/.openclaw/skills/teach-me/`
+- `ANTHROPIC_API_KEY` is already in the environment — do not prompt for it.
+- If the input is a file path, pass the absolute path and add `--topic "<title>"` if the user provided a title.
+- Append any user-specified flags (e.g. `--output`, `--concurrency`).
+- The command may take 2–5 minutes; inform the user it is running.
 
-## Configuration
+Example commands:
 
-The skill auto-detects teach-me-cli installation. Set `TEACH_ME_CLI_PATH` in `.openclaw/openclaw.json` if needed:
+```bash
+# Topic string
+cd /Users/huli/Desktop/teach-me-cli && npx tsx src/cli/index.ts generate "Teach me quantum computing" --format pptx,json,html
 
-```jsonc
-{
-  "skills": {
-    "entries": {
-      "teach-me": {
-        "config": {
-          "cliPath": "/path/to/teach-me-cli"
-        }
-      }
-    }
-  }
-}
+# File input
+cd /Users/huli/Desktop/teach-me-cli && npx tsx src/cli/index.ts generate "/absolute/path/to/notes.md" --topic "My Course" --format pptx,json,html
+
+# Custom output dir
+cd /Users/huli/Desktop/teach-me-cli && npx tsx src/cli/index.ts generate "TCP/IP Networking" --output ~/Desktop/courses --format pptx,json,html
 ```
 
-## Output Files
+## Step 3: Report Results
 
-After generation:
+After the command completes, summarize:
+- The generated files and their paths
+- Number of scenes created
+- Any warnings or errors from the output
 
-```
-🎓 Course generated: "Quantum Computing 101"
-
-📁 Download files:
-  • quantum-computing-101.pptx   (PowerPoint - editable)
-  • classroom.json               (Course structure)
-  • index.html                   (Interactive player)
-  • audio/                       (MP3 narration files)
-```
-
-## Tips
-
-- 📝 **Long content?** Upload a Markdown or PDF for best results
-- 🎙️ **Custom voice?** Configure OmniVoice settings in `.env.local`
-- 🚀 **Faster generation?** Shorter topics = faster generation (2-3 minutes typical)
-
-## Need Help?
-
-```
-/teach-me --help
-/teach-me config
-```
-
-Or ask: "Help me use teach-me"
+If audio generation fails (OmniVoice not available), that is normal — mention it was skipped and the other files are still usable.
