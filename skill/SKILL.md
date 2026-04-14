@@ -10,7 +10,8 @@ The `args` string after `/teach-me` is the `<input>`. It can be:
 
 Supported optional flags the user may append:
 - `--output <dir>` — output directory (default: `./output` inside CLI root)
-- `--format pptx,json,html` — comma-separated export formats (default: `pptx,json,html`)
+- `--format pptx,json,html,graph` — comma-separated export formats (default: `pptx,json,html`)
+  - `graph` generates an interactive knowledge graph (`graph.html`) showing scene and concept relationships
 - `--concurrency <n>` — parallel LLM calls (default: 3)
 
 If no args are provided, ask the user: "Please tell me the topic or file path for the course."
@@ -39,6 +40,9 @@ cd /Users/huli/Desktop/teach-me-cli && npx tsx src/cli/index.ts generate "/absol
 
 # Custom output dir
 cd /Users/huli/Desktop/teach-me-cli && npx tsx src/cli/index.ts generate "TCP/IP Networking" --output ~/Desktop/courses --format pptx,json,html
+
+# Include knowledge graph
+cd /Users/huli/Desktop/teach-me-cli && npx tsx src/cli/index.ts generate "Machine Learning Basics" --format pptx,json,html,graph
 ```
 
 ## Step 3: Report Results
@@ -49,3 +53,5 @@ After the command completes, summarize:
 - Any warnings or errors from the output
 
 If audio generation fails (OmniVoice not available), that is normal — mention it was skipped and the other files are still usable.
+
+If `--format graph` is included, report the path to `graph.html` and note that it is an interactive knowledge graph viewable in any browser.
