@@ -1,8 +1,20 @@
 export { generateGraph } from './graph.js';
 import PptxGenJS from 'pptxgenjs';
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
+import { writeFile, mkdir } from 'fs/promises';
+import { existsSync } from 'fs';
 import { dirname } from 'path';
 import type { Classroom } from '../types.js';
+
+async function ensureDir(dir: string): Promise<void> {
+  if (!existsSync(dir)) {
+    await mkdir(dir, { recursive: true });
+  }
+}
+
+/** Escape a value for safe embedding inside a <script> tag. */
+function jsonForScript(value: unknown): string {
+  return JSON.stringify(value).replace(/<\/script>/gi, '<\\/script>');
+}
 
 const SLIDE_WIDTH = 10;
 const SLIDE_HEIGHT = 5.625; // 16:9
@@ -18,11 +30,7 @@ export async function generatePPTX(
   console.log('📊 Export: Generating PPTX');
   console.log('='.repeat(50));
 
-  // Ensure output directory exists
-  const dir = dirname(outputPath);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
+  await ensureDir(dirname(outputPath));
 
   const prs = new PptxGenJS();
   prs.defineLayout({
@@ -118,14 +126,8 @@ export async function generateJSON(
   outputPath: string
 ): Promise<void> {
   console.log(`\n📄 Exporting to JSON: ${outputPath}`);
-
-  // Ensure output directory exists
-  const dir = dirname(outputPath);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-
-  writeFileSync(outputPath, JSON.stringify(classroom, null, 2));
+  await ensureDir(dirname(outputPath));
+  await writeFile(outputPath, JSON.stringify(classroom, null, 2));
   console.log(`✅ JSON saved: ${outputPath}`);
 }
 
@@ -139,11 +141,7 @@ export async function generateHTML(
 ): Promise<void> {
   console.log(`\n🎬 Exporting to HTML: ${outputPath}`);
 
-  // Ensure output directory exists
-  const dir = dirname(outputPath);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
+  await ensureDir(dirname(outputPath));
 
   const html = `<!DOCTYPE html>
 <html lang="zh-TW">
@@ -216,7 +214,7 @@ export async function generateHTML(
   </div>
   
   <script>
-    const classroom = ${JSON.stringify(classroom)};
+    const classroom = ${jsonForScript(classroom)};
     let currentSlide = 0;
     
     function init() {
@@ -301,6 +299,6 @@ export async function generateHTML(
 </body>
 </html>`;
 
-  writeFileSync(outputPath, html);
+  await writeFile(outputPath, html);
   console.log(`✅ HTML saved: ${outputPath}`);
 }

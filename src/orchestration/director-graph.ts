@@ -35,6 +35,28 @@ const CourseGeneratorState = Annotation.Root({
 
 type CourseGeneratorStateType = typeof CourseGeneratorState.State;
 
+// ============== Helpers ==============
+
+/**
+ * Strip markdown code fences and parse JSON from an LLM response.
+ * Throws with the raw response text on parse failure for easier debugging.
+ */
+function parseLLMJson<T>(text: string, context: string): T {
+  const cleaned = text
+    .replace(/```json\n?/g, '')
+    .replace(/```\n?/g, '')
+    .trim();
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch (err) {
+    throw new Error(
+      `[${context}] Failed to parse JSON from LLM response.\n` +
+      `Parse error: ${err}\n` +
+      `Raw response (first 500 chars): ${cleaned.slice(0, 500)}`
+    );
+  }
+}
+
 // ============== Nodes ==============
 
 async function initNode(state: CourseGeneratorStateType): Promise<Partial<CourseGeneratorStateType>> {
@@ -72,17 +94,7 @@ async function outlineNode(
       maxTokens: 4096,
     });
 
-    let outline: Scene[] = [];
-    try {
-      const text = response.text
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-      outline = JSON.parse(text);
-    } catch (e) {
-      console.error('❌ Failed to parse outline JSON');
-      throw e;
-    }
+    const outline = parseLLMJson<Scene[]>(response.text, 'outlineNode');
 
     console.log(`✅ Generated ${outline.length} scenes`);
 
@@ -130,12 +142,7 @@ async function contentNode(
           maxTokens: 2048,
         });
 
-        const contentData = JSON.parse(
-          response.text
-            .replace(/```json\n?/g, '')
-            .replace(/```\n?/g, '')
-            .trim()
-        );
+        const contentData = parseLLMJson<Partial<Scene>>(response.text, `contentNode scene ${i + 1}`);
 
         console.log(`✅ Scene ${i + 1} content done`);
         return { index: i, scene: { ...scene, ...contentData } };
@@ -192,12 +199,7 @@ async function actionsNode(
           maxTokens: 1024,
         });
 
-        const actionsData = JSON.parse(
-          response.text
-            .replace(/```json\n?/g, '')
-            .replace(/```\n?/g, '')
-            .trim()
-        );
+        const actionsData = parseLLMJson<{ actions: Scene['actions'] }>(response.text, `actionsNode scene ${i + 1}`);
 
         console.log(`✅ Scene ${i + 1} actions done`);
         return { index: i, scene: { ...scene, actions: actionsData.actions || [] } };
