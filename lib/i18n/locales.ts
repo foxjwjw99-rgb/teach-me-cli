@@ -14,6 +14,7 @@ export type LocaleEntry = {
  *   2. Add an entry here
  */
 export const supportedLocales = [
+  { code: 'zh-TW', label: '繁體中文', shortLabel: 'TW' },
   { code: 'zh-CN', label: '简体中文', shortLabel: 'CN' },
   { code: 'en-US', label: 'English', shortLabel: 'EN' },
   { code: 'ja-JP', label: '日本語', shortLabel: 'JA' },

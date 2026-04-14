@@ -42,8 +42,12 @@ import { VisuallyHidden } from 'radix-ui';
  */
 export function Stage({
   onRetryOutline,
+  recordMode = false,
+  autoplay = false,
 }: {
   onRetryOutline?: (outlineId: string) => Promise<void>;
+  recordMode?: boolean;
+  autoplay?: boolean;
 }) {
   const { t } = useI18n();
   const { mode, getCurrentScene, scenes, currentSceneId, setCurrentSceneId, generatingOutlines } =
@@ -532,8 +536,13 @@ export function Stage({
 
     engineRef.current = engine;
 
-    // Auto-start if triggered by auto-play scene advance
-    if (autoStartRef.current) {
+    // Set record mode if enabled
+    if (recordMode) {
+      engine.setRecordMode(true);
+    }
+
+    // Auto-start if triggered by auto-play scene advance or record mode
+    if (autoStartRef.current || autoplay || recordMode) {
       autoStartRef.current = false;
       (async () => {
         if (currentScene && chatAreaRef.current) {
@@ -930,18 +939,20 @@ export function Stage({
         isPresenting && !controlsVisible && 'cursor-none',
       )}
     >
-      {/* Scene Sidebar */}
-      <SceneSidebar
-        collapsed={sidebarCollapsed}
-        onCollapseChange={setSidebarCollapsed}
-        onSceneSelect={gatedSceneSwitch}
-        onRetryOutline={onRetryOutline}
-      />
+      {/* Scene Sidebar - hidden in record mode */}
+      {!recordMode && (
+        <SceneSidebar
+          collapsed={sidebarCollapsed}
+          onCollapseChange={setSidebarCollapsed}
+          onSceneSelect={gatedSceneSwitch}
+          onRetryOutline={onRetryOutline}
+        />
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
-        {/* Header */}
-        {!isPresenting && <Header currentSceneTitle={currentScene?.title || ''} />}
+        {/* Header - hidden in record mode */}
+        {!isPresenting && !recordMode && <Header currentSceneTitle={currentScene?.title || ''} />}
 
         {/* Canvas Area */}
         <div

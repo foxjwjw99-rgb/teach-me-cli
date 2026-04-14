@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     // Resolve model from request headers
     const { model: languageModel } = await resolveModelFromHeaders(req);
 
-    const isZh = language === 'zh-CN';
+    const isZh = language === 'zh-CN' || language === 'zh-TW';
 
     const systemPrompt = isZh
       ? `你是一位专业的教育评估专家。请根据题目和学生答案进行评分并给出简短评语。

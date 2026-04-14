@@ -29,8 +29,8 @@ const MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024;
 
 // ─── Types ───────────────────────────────────────────────────
 export interface GenerationToolbarProps {
-  language: 'zh-CN' | 'en-US';
-  onLanguageChange: (lang: 'zh-CN' | 'en-US') => void;
+  language: 'zh-CN' | 'zh-TW' | 'en-US';
+  onLanguageChange: (lang: 'zh-CN' | 'zh-TW' | 'en-US') => void;
   webSearch: boolean;
   onWebSearchChange: (v: boolean) => void;
   onSettingsOpen: (section?: SettingsSection) => void;
@@ -362,11 +362,15 @@ export function GenerationToolbar({
       <Tooltip>
         <TooltipTrigger asChild>
           <button
-            onClick={() => onLanguageChange(language === 'zh-CN' ? 'en-US' : 'zh-CN')}
+            onClick={() => {
+              if (language === 'zh-TW') onLanguageChange('en-US');
+              else if (language === 'en-US') onLanguageChange('zh-CN');
+              else onLanguageChange('zh-TW');
+            }}
             className={pillMuted}
           >
             <Globe className="size-3.5" />
-            <span>{language === 'zh-CN' ? '中文' : 'EN'}</span>
+            <span>{language === 'zh-TW' ? '繁中' : language === 'zh-CN' ? '簡中' : 'EN'}</span>
           </button>
         </TooltipTrigger>
         <TooltipContent>{t('toolbar.languageHint')}</TooltipContent>

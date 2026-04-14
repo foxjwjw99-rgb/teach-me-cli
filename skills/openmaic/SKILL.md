@@ -43,11 +43,11 @@ If present, read defaults from `~/.openclaw/openclaw.json` under:
 
 ## SOP Phases
 
-### 1. Check / Acquire Access Code
+### Phase 1 — Check / Acquire Access Code
 
-Check if `accessCode` is in the skill config at `~/.openclaw/openclaw.json`:
+Read `~/.openclaw/openclaw.json`:
 
-- **If found:** Announce the code is stored, skip to phase 2.
+- **If `accessCode` is found:** Announce the code is stored, skip to Phase 2.
 - **If not found:** Tell the user:
   ```
   To generate classrooms, you need an access code from open.maic.chat.
@@ -58,23 +58,90 @@ Check if `accessCode` is in the skill config at `~/.openclaw/openclaw.json`:
   ```
   Wait for confirmation before continuing.
 
-### 2. Verify Connectivity
+---
 
-Make a test request to the hosted service:
+### Phase 2 — Connect & Authenticate
+
+**Step 2a — Check service health (no auth):**
+
 ```
 GET https://open.maic.chat/api/health
-Authorization: Bearer <access-code>
 ```
 
-- **On success (200):** Proceed to phase 3 (generation).
-- **On failure (401):** Access code is invalid. Ask the user to regenerate it at open.maic.chat and update the config.
-- **On failure (network):** Suggest checking network connectivity or trying again later.
+- **On success:** Extract the `capabilities` object from `data.capabilities`. You will use this in Phase 2.5.
+- **On network failure:** Tell the user the service is unreachable and suggest checking their internet connection.
 
-### 3. Generate A Classroom
+**Step 2b — Verify access code (obtain session cookie):**
 
-Load [references/hosted-generate-flow.md](references/hosted-generate-flow.md).
+```
+POST https://open.maic.chat/api/access-code/verify
+Content-Type: application/json
 
-Follow the flow to collect user input (topic or PDF), submit the generation request to the hosted service, and poll until completion.
+{ "code": "<access-code>" }
+```
+
+- **On 200:** The server sets an `openmaic_access` session cookie. Save this cookie — include it in all subsequent requests.
+- **On 401:** Access code is invalid. Ask the user to regenerate it at open.maic.chat and update the config file.
+- **On network error:** Retry once after 5 seconds; if still failing, report the issue.
+
+---
+
+### Phase 2.5 — Feature Selection
+
+Based on the `capabilities` from Phase 2a, offer optional preferences **before** asking for the topic.
+
+Always ask for **language**:
+> 請選擇課程語言：
+> - 中文 (zh-CN)
+> - 英文 (en-US)
+
+Always offer **agent mode**:
+> 教師角色模式：
+> - `default` — 使用預設的教師/學生角色（速度較快）
+> - `generate` — 由 AI 根據主題生成專屬角色（內容更豐富，但稍慢）
+
+Only present optional features when the corresponding capability is `true`:
+
+| Feature | Capability flag | Recommend |
+|---------|----------------|-----------|
+| 網路搜尋 (Web search) | `capabilities.webSearch` | ✅ 推薦開啟 |
+| 圖片生成 | `capabilities.imageGeneration` | 選填 |
+| 影片生成 | `capabilities.videoGeneration` | 選填 |
+| 語音朗讀 (TTS) | `capabilities.tts` | 選填 |
+
+If **none** of the optional capabilities are `true`, skip feature selection and proceed directly to Phase 3.
+
+---
+
+### Phase 3 — Generate A Classroom
+
+Load [references/hosted-generate-flow.md](references/hosted-generate-flow.md) for the complete technical API flow.
+
+Follow these steps:
+
+1. **Collect input**: Ask for topic text, or ask to upload a PDF (confirm before reading from disk). Combine with the preferences collected in Phase 2.5.
+
+2. **Submit request**: POST to `/api/generate-classroom` with the full request body including all selected options.
+
+3. **Show live progress**: While polling, display a progress bar and step label after each poll:
+   ```
+   [████████░░] 80% — 生成場景 4/5...
+   ```
+   Update the display on each response — do not print a new line per poll; replace the previous status line.
+
+4. **Handle failure**: If `status === "failed"`, show the `error` field and offer to retry from the beginning.
+
+5. **Return result**: When `status === "succeeded"`, return the classroom URL on its own line:
+   ```
+   https://open.maic.chat/classroom/<classroomId>
+   ```
+   Include a brief summary:
+   - 主題
+   - 語言
+   - 場景數量
+   - 啟用的功能（網路搜尋、圖片、TTS 等）
+
+---
 
 ## Response Style
 

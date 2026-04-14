@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
 
     // Build prompt (same logic as generateSceneOutlinesFromRequirements)
     let availableImagesText =
-      requirements.language === 'zh-CN' ? '无可用图片' : 'No images available';
+      requirements.language === 'zh-CN' || requirements.language === 'zh-TW' ? '无可用图片' : 'No images available';
     let visionImages: Array<{ id: string; src: string }> | undefined;
 
     if (pdfImages && pdfImages.length > 0) {
@@ -181,11 +181,11 @@ export async function POST(req: NextRequest) {
       language: requirements.language,
       pdfContent: pdfText
         ? pdfText.substring(0, MAX_PDF_CONTENT_CHARS)
-        : requirements.language === 'zh-CN'
+        : requirements.language === 'zh-CN' || requirements.language === 'zh-TW'
           ? '无'
           : 'None',
       availableImages: availableImagesText,
-      researchContext: researchContext || (requirements.language === 'zh-CN' ? '无' : 'None'),
+      researchContext: researchContext || (requirements.language === 'zh-CN' || requirements.language === 'zh-TW' ? '无' : 'None'),
       mediaGenerationPolicy,
       teacherContext,
     });

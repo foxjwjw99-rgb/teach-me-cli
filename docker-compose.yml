@@ -1,3 +1,5 @@
+name: openmaic
+
 services:
   openmaic:
     build: .

@@ -62,6 +62,9 @@ export class PlaybackEngine {
   // Discussion topic state
   private currentTopicState: TopicState | null = null;
 
+  // Record mode: skip interactive prompts, auto-advance, emit completion event
+  private recordMode: boolean = false;
+
   // Dependencies
   private audioPlayer: AudioPlayer;
   private actionEngine: ActionEngine;
@@ -118,6 +121,27 @@ export class PlaybackEngine {
     this.sceneIndex = snapshot.sceneIndex;
     this.actionIndex = snapshot.actionIndex;
     this.consumedDiscussions = new Set(snapshot.consumedDiscussions);
+  }
+
+  /** Enable/disable record mode (auto-advance, skip interactive prompts) */
+  setRecordMode(enabled: boolean): void {
+    this.recordMode = enabled;
+    if (enabled) {
+      log.info('Record mode enabled: playback will auto-advance and emit completion signal');
+    }
+  }
+
+  /** Check if record mode is active */
+  isRecording(): boolean {
+    return this.recordMode;
+  }
+
+  /** Emit completion event for headless recorder */
+  private emitRecordingComplete(): void {
+    if (typeof window !== 'undefined' && this.recordMode) {
+      log.info('Recording complete, emitting classroom:recording-complete event');
+      window.dispatchEvent(new CustomEvent('classroom:recording-complete'));
+    }
   }
 
   /** idle → playing (from beginning) */
@@ -439,6 +463,7 @@ export class PlaybackEngine {
       // All scenes complete
       this.actionEngine.clearEffects();
       this.setMode('idle');
+      this.emitRecordingComplete();
       this.callbacks.onComplete?.();
       return;
     }
@@ -547,6 +572,29 @@ export class PlaybackEngine {
           !this.callbacks.isAgentSelected(discussionAction.agentId)
         ) {
           this.consumedDiscussions.add(discussionAction.id);
+          this.processNext();
+          return;
+        }
+
+        // In record mode: auto-confirm discussions without waiting
+        if (this.recordMode) {
+          const trigger: TriggerEvent = {
+            id: discussionAction.id,
+            question: discussionAction.topic,
+            prompt: discussionAction.prompt,
+            agentId: discussionAction.agentId,
+          };
+          this.consumedDiscussions.add(discussionAction.id);
+          this.savedSceneIndex = this.sceneIndex;
+          this.savedActionIndex = this.actionIndex;
+          this.currentTopicState = 'active';
+          this.callbacks.onDiscussionConfirmed?.(
+            trigger.question,
+            trigger.prompt,
+            trigger.agentId,
+          );
+          this.currentTrigger = null;
+          // In record mode, don't transition to 'live' — keep playing
           this.processNext();
           return;
         }
@@ -664,7 +712,7 @@ export class PlaybackEngine {
         chunkText.length > 0
           ? (chunkText.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length / chunkText.length
           : 0;
-      utterance.lang = cjkRatio > CJK_LANG_THRESHOLD ? 'zh-CN' : 'en-US';
+      utterance.lang = cjkRatio > CJK_LANG_THRESHOLD ? 'zh-TW' : 'en-US';
     }
 
     utterance.onend = () => {

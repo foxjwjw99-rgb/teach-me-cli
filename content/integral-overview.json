@@ -1,0 +1,341 @@
+{
+  "meta": {
+    "title": "積分概要",
+    "subtitle": "從直覺到計算",
+    "description": "涵蓋不定積分、定積分、微積分基本定理、換元積分、分部積分，附例題與小測",
+    "language": "zh-TW",
+    "accent": "blue"
+  },
+  "slides": [
+    {
+      "type": "cover",
+      "title": "積分概要",
+      "subtitle": "從直覺理解到實際計算",
+      "badge": "數學基礎課",
+      "highlights": [
+        "直覺理解積分",
+        "不定積分 & 反導數",
+        "定積分 & 面積",
+        "微積分基本定理",
+        "常見積分法則",
+        "換元積分法",
+        "分部積分法",
+        "實戰例題 & 測驗"
+      ],
+      "notes": "這門課從直覺出發，不需要任何背景知識。大約需要 20 分鐘。"
+    },
+    {
+      "type": "overview",
+      "title": "課程地圖",
+      "subtitle": "你將走過的 8 個關卡",
+      "cards": [
+        { "num": "1", "title": "積分是什麼？", "sub": "面積的直覺", "accent": "blue" },
+        { "num": "2", "title": "不定積分",     "sub": "反導數 & +C",  "accent": "teal" },
+        { "num": "3", "title": "定積分",        "sub": "上下界計算",   "accent": "teal" },
+        { "num": "4", "title": "微積分基本定理", "sub": "FTC I & II",   "accent": "navy" },
+        { "num": "5", "title": "法則速查表",    "sub": "11 條必背公式", "accent": "blue" },
+        { "num": "6", "title": "換元積分",      "sub": "u-substitution","accent": "orange" },
+        { "num": "7", "title": "分部積分",      "sub": "∫u dv = uv−∫v du","accent": "orange" },
+        { "num": "8", "title": "例題 & 小測",  "sub": "4 題 + 6 題",  "accent": "green" }
+      ],
+      "notes": "建議依序學習，每個關卡約 2-3 分鐘。"
+    },
+    {
+      "type": "concept",
+      "title": "什麼是積分？",
+      "subtitle": "從「無限細分再求和」出發",
+      "accent": "blue",
+      "body": {
+        "sidebar": "積分的核心思想：\n\n把一段「連續量」切成無限多個極小片段，\n再把這些片段的貢獻全部加起來。\n\n日常比喻：\n• 速度積分 → 位移\n• 密度積分 → 質量\n• 邊際成本積分 → 總成本",
+        "sidebarAccent": "blue",
+        "formulas": [
+          {
+            "label": "不定積分（Indefinite）",
+            "formula": "∫ f(x) dx",
+            "note": "∫ 是拉長的 S（Sum），代表「求和」的概念",
+            "accent": "blue"
+          },
+          {
+            "label": "定積分（Definite）",
+            "formula": "∫ₐᵇ f(x) dx",
+            "note": "a 到 b 之間，f(x) 對 x 的積分（帶正負號的面積）",
+            "accent": "teal"
+          }
+        ]
+      },
+      "notes": "積分符號 ∫ 由 Leibniz 發明，代表 Summa（拉丁文的求和）。"
+    },
+    {
+      "type": "concept",
+      "title": "不定積分 = 反導數",
+      "subtitle": "找一個函數，使其導數等於被積函數",
+      "accent": "teal",
+      "body": {
+        "banner": {
+          "formula": "∫ f(x) dx = F(x) + C     其中 F'(x) = f(x)",
+          "accent": "teal"
+        },
+        "sidebar": "為什麼加 +C？\n\nC 稱為積分常數。\n因為對任何常數 C，\n(F(x) + C)' = F'(x)\n所以不定積分的答案\n有無窮多個，只差一個常數。",
+        "sidebarAccent": "teal",
+        "examples": [
+          { "q": "∫ 2x dx",   "a": "x² + C",       "check": "(x²)' = 2x ✓" },
+          { "q": "∫ cos x dx","a": "sin x + C",     "check": "(sin x)' = cos x ✓" },
+          { "q": "∫ eˣ dx",   "a": "eˣ + C",        "check": "(eˣ)' = eˣ ✓" }
+        ],
+        "warning": "不定積分的答案一定要加 +C，否則不完整！"
+      },
+      "notes": "可用微分驗算：把答案微分，看是否還原成被積函數。"
+    },
+    {
+      "type": "concept",
+      "title": "定積分與幾何意義",
+      "subtitle": "帶正負號的「面積」",
+      "accent": "teal",
+      "body": {
+        "banner": {
+          "formula": "∫ₐᵇ f(x) dx = F(b) − F(a)    （微積分基本定理）",
+          "accent": "teal"
+        },
+        "sidebar": "幾何意義：\n\n✅ f(x) ≥ 0：面積為正\n❌ f(x) < 0：面積為負\n\n「帶正負號的面積」\n= x 軸上方面積\n− x 軸下方面積\n\n⚠ 跨越 x 軸時需小心！",
+        "sidebarAccent": "teal",
+        "steps": {
+          "title": "計算範例：∫₀² x² dx",
+          "items": [
+            "反導數  F(x) = x³/3",
+            "F(2) = 8/3,   F(0) = 0",
+            "∫₀² x² dx = F(2) − F(0)",
+            "= 8/3 − 0 = 8/3 ≈ 2.67"
+          ],
+          "highlightLast": true
+        }
+      },
+      "notes": "定積分計算的關鍵步驟：① 求反導數 F(x)  ②代入上界 F(b)  ③代入下界 F(a)  ④ 相減"
+    },
+    {
+      "type": "concept",
+      "title": "微積分基本定理（FTC）",
+      "subtitle": "微分與積分的逆運算橋梁",
+      "accent": "navy",
+      "body": {
+        "twoSection": [
+          {
+            "sectionTitle": "FTC 第一型（微分形式）",
+            "formula": "d/dx [ ∫ₐˣ f(t) dt ] = f(x)",
+            "accent": "blue",
+            "explanation": "若 F(x) = ∫ₐˣ f(t) dt\n則 F'(x) = f(x)\n→ 積分後再微分，「還原」成原函數"
+          },
+          {
+            "sectionTitle": "FTC 第二型（牛頓-萊布尼茨公式）",
+            "formula": "∫ₐᵇ f(x) dx = F(b) − F(a)",
+            "accent": "teal",
+            "explanation": "若 F'(x) = f(x)\n→ 定積分可直接用 F(b)−F(a) 計算\n→ 這是最常用的計算公式"
+          }
+        ],
+        "sidebar": "微分 ↔ 積分\n\nF(x)\n↓ 微分 (d/dx)\nf(x)\n↓ 積分 (∫…dx)\nF(x) + C\n\n兩者互為逆運算",
+        "sidebarAccent": "navy"
+      },
+      "notes": "FTC 是微積分最重要的定理，它把求面積（積分）和求斜率（微分）這兩個看似無關的問題統一起來。"
+    },
+    {
+      "type": "table",
+      "title": "常見積分法則速查表",
+      "subtitle": "11 條必背基本公式",
+      "accent": "blue",
+      "table": {
+        "headers": ["類型", "被積函數 f(x)", "不定積分 ∫f(x) dx", "條件"],
+        "rows": [
+          ["冪次規則",   "xⁿ",         "xⁿ⁺¹ / (n+1) + C",   "n ≠ −1"],
+          ["常數",       "k",           "kx + C",              "—"],
+          ["自然對數",   "1/x",         "ln|x| + C",           "x ≠ 0"],
+          ["指數 (e)",   "eˣ",          "eˣ + C",              "—"],
+          ["指數 (底a)", "aˣ",          "aˣ / ln(a) + C",      "a>0, a≠1"],
+          ["正弦",       "sin x",       "−cos x + C",          "—"],
+          ["餘弦",       "cos x",       "sin x + C",           "—"],
+          ["正切",       "tan x",       "−ln|cos x| + C",      "—"],
+          ["反正弦",     "1/√(1−x²)",   "arcsin x + C",        "|x| < 1"],
+          ["反正切",     "1/(1+x²)",    "arctan x + C",        "—"],
+          ["線性組合",   "af(x)+bg(x)", "a·∫f dx + b·∫g dx",  "—"]
+        ]
+      },
+      "notes": "重點記憶：冪次規則（最常用）、三角函數積分（正負號容易搞混）、指數與對數。"
+    },
+    {
+      "type": "technique",
+      "title": "換元積分法",
+      "subtitle": "u-Substitution：化繁為簡的關鍵技巧",
+      "accent": "orange",
+      "body": {
+        "banner": {
+          "formula": "令 u = g(x)，du = g'(x) dx  →  ∫ f(g(x))·g'(x) dx = ∫ f(u) du",
+          "accent": "orange"
+        },
+        "steps": {
+          "title": "四步驟",
+          "items": [
+            "① 選 u = g(x)（通常選「內層函數」）",
+            "② 求 du = g'(x) dx",
+            "③ 把整個積分式全部換成 u",
+            "④ 積分完後，把 u 換回 x"
+          ],
+          "accent": "orange"
+        },
+        "workedExample": {
+          "title": "完整範例：∫ 2x · cos(x²) dx",
+          "steps": [
+            "設 u = x²，則 du = 2x dx",
+            "代入：∫ cos(u) du",
+            "積分：sin(u) + C",
+            "回代：sin(x²) + C"
+          ],
+          "answer": "sin(x²) + C"
+        },
+        "tip": "選 u 技巧：找到某項函數的導數恰好出現在式子裡，就選它為 u"
+      },
+      "notes": "u-sub 是最常用的積分技巧。核心：如果 ∫f(g(x))·g'(x)dx，令 u=g(x)。"
+    },
+    {
+      "type": "technique",
+      "title": "分部積分法",
+      "subtitle": "Integration by Parts：乘積型被積函數的利器",
+      "accent": "orange",
+      "body": {
+        "banner": {
+          "formula": "∫ u dv = uv − ∫ v du",
+          "accent": "orange"
+        },
+        "liate": {
+          "title": "選 u 的技巧：LIATE 法則",
+          "items": [
+            { "letter": "L", "eng": "Logarithmic", "chi": "對數函數 ln x",      "accent": "blue" },
+            { "letter": "I", "eng": "Inverse trig", "chi": "反三角 arcsin, arctan", "accent": "teal" },
+            { "letter": "A", "eng": "Algebraic",    "chi": "多項式 xⁿ",         "accent": "navy" },
+            { "letter": "T", "eng": "Trigonometric","chi": "三角 sin x, cos x",  "accent": "orange" },
+            { "letter": "E", "eng": "Exponential",  "chi": "指數 eˣ, aˣ",        "accent": "green" }
+          ],
+          "note": "越靠前的字母，越優先選為 u"
+        },
+        "workedExample": {
+          "title": "範例：∫ x·eˣ dx",
+          "steps": [
+            "選 u = x（A > E），dv = eˣ dx",
+            "則 du = dx，v = eˣ",
+            "= x·eˣ − ∫ eˣ dx",
+            "= x·eˣ − eˣ + C",
+            "= eˣ(x − 1) + C"
+          ],
+          "answer": "eˣ(x − 1) + C"
+        }
+      },
+      "notes": "分部積分由乘積法則推導：d(uv) = u dv + v du → ∫u dv = uv − ∫v du。"
+    },
+    {
+      "type": "examples",
+      "title": "實戰例題精解",
+      "subtitle": "4 道題，涵蓋所有核心技巧",
+      "accent": "green",
+      "problems": [
+        {
+          "id": "Q1",
+          "tag": "基本法則",
+          "question": "∫ (3x² + 2x − 5) dx",
+          "answer": "x³ + x² − 5x + C",
+          "hint": "逐項積分，冪次規則",
+          "accent": "blue"
+        },
+        {
+          "id": "Q2",
+          "tag": "定積分",
+          "question": "∫₁⁴ √x dx",
+          "answer": "[2/3 · x^(3/2)]₁⁴ = 14/3",
+          "hint": "√x = x^(1/2)，套冪次規則後代入上下界",
+          "accent": "teal"
+        },
+        {
+          "id": "Q3",
+          "tag": "換元法",
+          "question": "∫ x · sin(x²) dx",
+          "answer": "−(1/2) cos(x²) + C",
+          "hint": "令 u = x²，du = 2x dx，整理後積分",
+          "accent": "orange"
+        },
+        {
+          "id": "Q4",
+          "tag": "分部積分",
+          "question": "∫ ln(x) dx",
+          "answer": "x·ln(x) − x + C",
+          "hint": "u = ln x（L 優先），dv = dx，v = x",
+          "accent": "red"
+        }
+      ],
+      "notes": "Q3 換元：u=x²，du=2x dx → ∫sin(u)·(1/2)du。Q4 是 lnx 的標準分部積分。"
+    },
+    {
+      "type": "quiz",
+      "title": "自我測驗",
+      "subtitle": "先蓋住答案做，再對照！",
+      "accent": "yellow",
+      "problems": [
+        { "num": "1", "question": "∫ 4x³ dx = ?",               "answer": "x⁴ + C" },
+        { "num": "2", "question": "∫₀^π sin x dx = ?",           "answer": "2" },
+        { "num": "3", "question": "∫ 1/(2x+1) dx = ?",           "answer": "(1/2) ln|2x+1| + C" },
+        { "num": "4", "question": "d/dx [∫₀ˣ t² dt] = ?",        "answer": "x²  （FTC 第一型）" },
+        { "num": "5", "question": "∫ x·cos x dx = ?",             "answer": "x sin x + cos x + C" },
+        { "num": "6", "question": "∫₋₁¹ x³ dx = ?",               "answer": "0  （奇函數 + 對稱區間）" }
+      ],
+      "notes": "Q2: [−cos x]₀^π = −cos π + cos 0 = 1+1=2。Q6 是陷阱，奇函數在對稱區間積分為 0。"
+    },
+    {
+      "type": "pitfalls",
+      "title": "常見錯誤 & 注意事項",
+      "subtitle": "學好積分，先學會不踩坑",
+      "accent": "red",
+      "items": [
+        {
+          "title": "忘記加 +C",
+          "wrong": "∫ 2x dx = x²",
+          "right": "∫ 2x dx = x² + C",
+          "note": "不定積分必須加積分常數，否則是不完整的答案"
+        },
+        {
+          "title": "定積分忘代界",
+          "wrong": "∫₀² x dx = x²/2",
+          "right": "∫₀² x dx = [x²/2]₀² = 2 − 0 = 2",
+          "note": "定積分一定要代入上下界才算完成"
+        },
+        {
+          "title": "換元忘換 dx",
+          "wrong": "令 u=x²，∫cos(x²)dx = ∫cos(u)du",
+          "right": "du=2x dx → ∫cos(x²)dx = (1/2)∫cos(u)du",
+          "note": "換元時 dx 也必須一起轉換，不可省略"
+        },
+        {
+          "title": "乘積不可分開積",
+          "wrong": "∫ x·sin x dx = (∫x dx)(∫sin x dx)",
+          "right": "需用分部積分：−x cos x + sin x + C",
+          "note": "積分不滿足「乘法分配律」，不能各自積再相乘"
+        }
+      ],
+      "notes": "這四個是最常見的錯誤。建議讓學生先找出錯誤，再說明正確解法。"
+    },
+    {
+      "type": "summary",
+      "title": "課程總結",
+      "subtitle": "你剛剛學會了什麼",
+      "accent": "navy",
+      "points": [
+        { "emoji": "🔢", "text": "積分 = 無窮多個極小量的總和（黎曼和直覺）" },
+        { "emoji": "⬅️", "text": "不定積分 = 反導數，答案形式為 F(x) + C" },
+        { "emoji": "📐", "text": "定積分 = F(b) − F(a)，代表帶正負號的面積" },
+        { "emoji": "🔗", "text": "FTC 把微分算子 (d/dx) 和積分 (∫) 連繫起來" },
+        { "emoji": "🔄", "text": "換元法 (u-sub)：處理複合函數，令 u = 內層函數" },
+        { "emoji": "✖️", "text": "分部積分：∫u dv = uv − ∫v du，選 u 看 LIATE 法則" }
+      ],
+      "next": [
+        "練習：多做題目鞏固技巧（MIT OCW 18.01 習題集）",
+        "進階：多重積分（二重、三重積分）",
+        "應用：面積 / 弧長 / 旋轉體體積計算"
+      ],
+      "notes": "課程結束。恭喜完成積分概要！建議立刻做 5-10 道閉卷練習。"
+    }
+  ]
+}

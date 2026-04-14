@@ -58,14 +58,14 @@ const RECENT_OPEN_STORAGE_KEY = 'recentClassroomsOpen';
 interface FormState {
   pdfFile: File | null;
   requirement: string;
-  language: 'zh-CN' | 'en-US';
+  language: 'zh-CN' | 'zh-TW' | 'en-US';
   webSearch: boolean;
 }
 
 const initialFormState: FormState = {
   pdfFile: null,
   requirement: '',
-  language: 'zh-CN',
+  language: 'zh-TW',
   webSearch: false,
 };
 
@@ -101,10 +101,11 @@ function HomePage() {
       const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
       const updates: Partial<FormState> = {};
       if (savedWebSearch === 'true') updates.webSearch = true;
-      if (savedLanguage === 'zh-CN' || savedLanguage === 'en-US') {
+      if (savedLanguage === 'zh-CN' || savedLanguage === 'zh-TW' || savedLanguage === 'en-US') {
         updates.language = savedLanguage;
       } else {
-        const detected = navigator.language?.startsWith('zh') ? 'zh-CN' : 'en-US';
+        const lang = navigator.language ?? '';
+        const detected = lang.startsWith('zh') ? 'zh-TW' : 'en-US';
         updates.language = detected;
       }
       if (Object.keys(updates).length > 0) {
