@@ -36,8 +36,12 @@ export class OpenClawLLMAdapter {
       content: m.content,
     }));
 
+    const model = request.model
+      ?? process.env.TEACH_ME_MODEL
+      ?? 'claude-opus-4-5';
+
     const response = await this.anthropic.messages.create({
-      model: 'claude-opus-4-5',
+      model,
       max_tokens: request.maxTokens ?? 4096,
       system: request.systemPrompt,
       messages,

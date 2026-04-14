@@ -5,7 +5,7 @@ import { buildCourseGeneratorGraph } from '../../orchestration/director-graph.js
 import { createLLMAdapter } from '../../orchestration/llm-adapter.js';
 import { generateCourseNarration } from '../../audio/omnivoice.js';
 import { generatePPTX, generateJSON, generateHTML, generateGraph } from '../../export/index.js';
-import type { ParsedInput, Config, Classroom } from '../../types.js';
+import type { ParsedInput, Classroom } from '../../types.js';
 
 // ============ Inline Spinner ============
 
@@ -202,88 +202,69 @@ export const generateCommand = {
       }
 
       // ============ Generate Audio ============
+      const audioDir = path.join(outputDir, 'audio');
       if (formats.includes('pptx') || formats.includes('html')) {
-        const audioDir = path.join(outputDir, 'audio');
         try {
           const audioSpinner = createSpinner('生成音頻旁白...');
           audioSpinner.start();
-          const config: Partial<Config> = {
-            omnivoice: {
-              refAudio: '/Users/huli/.openclaw/workspace/voice-clones/jimmy-current-clone-reference.wav',
-              refText: '这是现在我们学校流行的装饰品了。',
-              instruct: 'female, very low pitch',
-              speed: 0.9,
-              style: '請用台灣國語的感覺說話，使用台灣繁體中文常用詞。不要香港口音，不要港式語調，不要粵語感。不要中國播報腔，不要兒化音。語氣自然、親切、口語，像台灣日常對話。',
-            },
-          };
-
-          audioSpinner.succeed('開始並行生成音頻...');
-          const audioResults = await generateCourseNarration(classroom.scenes, audioDir, config);
+          // Config reads from env vars; omnivoice.ts has matching defaults
+          const audioResults = await generateCourseNarration(classroom.scenes, audioDir);
           const successCount = audioResults.filter((r) => r.success).length;
-          console.log(`✅ 音頻生成完成: ${successCount}/${audioResults.length} 成功`);
+          audioSpinner.succeed(`音頻生成完成: ${successCount}/${audioResults.length} 成功`);
         } catch (error) {
           console.warn(`⚠️  音頻生成略過: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
-      // ============ Export ============
+      // ============ Export (parallel) ============
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
       }
 
-      const exports: string[] = [];
+      console.log('\n📦 並行匯出中...');
+
+      type ExportResult = { label: string; path: string } | null;
+
+      const exportTasks: Promise<ExportResult>[] = [];
 
       if (formats.includes('pptx')) {
         const pptxPath = path.join(outputDir, `${parsedInput.title}.pptx`);
-        const s = createSpinner('匯出 PPTX...');
-        s.start();
-        try {
-          await generatePPTX(classroom, pptxPath);
-          exports.push(pptxPath);
-          s.succeed(`PPTX 匯出完成`);
-        } catch (error) {
-          s.fail(`PPTX 匯出失敗: ${error}`);
-        }
+        exportTasks.push(
+          generatePPTX(classroom, pptxPath)
+            .then(() => { console.log('  ✅ PPTX 完成'); return { label: 'PPTX', path: pptxPath }; })
+            .catch((err) => { console.error(`  ❌ PPTX 失敗: ${err}`); return null; })
+        );
       }
 
       if (formats.includes('json')) {
         const jsonPath = path.join(outputDir, 'classroom.json');
-        const s = createSpinner('匯出 JSON...');
-        s.start();
-        try {
-          await generateJSON(classroom, jsonPath);
-          exports.push(jsonPath);
-          s.succeed('JSON 匯出完成');
-        } catch (error) {
-          s.fail(`JSON 匯出失敗: ${error}`);
-        }
+        exportTasks.push(
+          generateJSON(classroom, jsonPath)
+            .then(() => { console.log('  ✅ JSON 完成'); return { label: 'JSON', path: jsonPath }; })
+            .catch((err) => { console.error(`  ❌ JSON 失敗: ${err}`); return null; })
+        );
       }
 
       if (formats.includes('html')) {
         const htmlPath = path.join(outputDir, 'index.html');
-        const s = createSpinner('匯出 HTML 播放器...');
-        s.start();
-        try {
-          await generateHTML(classroom, htmlPath, path.join(outputDir, 'audio'));
-          exports.push(htmlPath);
-          s.succeed('HTML 匯出完成');
-        } catch (error) {
-          s.fail(`HTML 匯出失敗: ${error}`);
-        }
+        exportTasks.push(
+          generateHTML(classroom, htmlPath, audioDir)
+            .then(() => { console.log('  ✅ HTML 完成'); return { label: 'HTML', path: htmlPath }; })
+            .catch((err) => { console.error(`  ❌ HTML 失敗: ${err}`); return null; })
+        );
       }
 
       if (formats.includes('graph')) {
         const graphPath = path.join(outputDir, 'graph.html');
-        const s = createSpinner('匯出知識圖譜...');
-        s.start();
-        try {
-          await generateGraph(classroom, graphPath);
-          exports.push(graphPath);
-          s.succeed('知識圖譜匯出完成');
-        } catch (error) {
-          s.fail(`知識圖譜匯出失敗: ${error}`);
-        }
+        exportTasks.push(
+          generateGraph(classroom, graphPath)
+            .then(() => { console.log('  ✅ 知識圖譜 完成'); return { label: '知識圖譜', path: graphPath }; })
+            .catch((err) => { console.error(`  ❌ 知識圖譜 失敗: ${err}`); return null; })
+        );
       }
+
+      const exportResults = await Promise.all(exportTasks);
+      const exports = exportResults.filter((r): r is { label: string; path: string } => r !== null);
 
       // ============ Summary ============
       console.log(`\n${'='.repeat(50)}`);
