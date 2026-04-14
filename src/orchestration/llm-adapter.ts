@@ -13,6 +13,17 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Remove lone UTF-16 surrogates from a string so it can be safely
+ * serialized to JSON.  The Anthropic API rejects requests containing
+ * invalid surrogate pairs (HTTP 400 "invalid high surrogate").
+ */
+function sanitizeText(text: string): string {
+  // Replace lone high surrogates (U+D800–U+DBFF not followed by low surrogate)
+  // and lone low surrogates (U+DC00–U+DFFF not preceded by high surrogate).
+  return text.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '\uFFFD');
+}
+
 export class OpenClawLLMAdapter {
   private anthropic: Anthropic | null = null;
 
@@ -33,7 +44,7 @@ export class OpenClawLLMAdapter {
 
     const messages: Anthropic.MessageParam[] = request.messages.map((m) => ({
       role: m.role as 'user' | 'assistant',
-      content: m.content,
+      content: sanitizeText(m.content),
     }));
 
     const model = request.model
@@ -43,7 +54,7 @@ export class OpenClawLLMAdapter {
     const response = await this.anthropic.messages.create({
       model,
       max_tokens: request.maxTokens ?? 4096,
-      system: request.systemPrompt,
+      system: request.systemPrompt ? sanitizeText(request.systemPrompt) : undefined,
       messages,
     });
 
