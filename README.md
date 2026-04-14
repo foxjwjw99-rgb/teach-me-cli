@@ -201,15 +201,18 @@ OMNIVOICE_SPEED=0.9
 OMNIVOICE_STYLE="台灣國語..."
 ```
 
-### LLM Selection
+### LLM Integration
 
-When used standalone, set:
+**Primary (OpenClaw mode):**
+teach-me-cli uses OpenClaw's local model bridge (`openclaw infer model run --json`).
+In this mode, you don't need API keys — OpenClaw handles model routing.
+
+**Fallback (Direct API, if needed):**
+For direct API access without OpenClaw, set:
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-...
 ```
-
-When used with OpenClaw, the LLM is automatically injected.
 
 ## Performance
 
@@ -231,10 +234,10 @@ which omnivoice-local
 
 ### "No LLM configured"
 
-In standalone mode, you need an API key. In OpenClaw mode, it's injected automatically.
+teach-me-cli primarily runs via OpenClaw's local model bridge. If you're running without OpenClaw, set a direct API key as fallback:
 
 ```bash
-# Standalone mode
+# Fallback: direct API mode (without OpenClaw)
 export ANTHROPIC_API_KEY=sk-ant-...
 npm run generate "Your topic"
 ```

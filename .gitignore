@@ -4,3 +4,5 @@ dist/
 *.mp3
 *.wav
 output/
+.DS_Store
+**/.DS_Store
