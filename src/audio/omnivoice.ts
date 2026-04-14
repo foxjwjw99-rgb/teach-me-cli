@@ -1,19 +1,10 @@
-import { exec } from 'child_process';
+import { execFile, spawnSync } from 'child_process';
+import { promisify } from 'util';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import pLimit from 'p-limit';
 
-function execAsync(cmd: string): Promise<{ stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    exec(cmd, { encoding: 'utf8' }, (error, stdout, stderr) => {
-      if (error) {
-        reject(Object.assign(error, { stdout, stderr }));
-      } else {
-        resolve({ stdout, stderr });
-      }
-    });
-  });
-}
+const execFileAsync = promisify(execFile);
 
 function ensureDir(dir: string): void {
   if (!existsSync(dir)) {
@@ -39,28 +30,21 @@ export async function generateNarrationWithOmniVoice(
   const style = process.env.OMNIVOICE_STYLE ??
     '請用台灣國語的感覺說話，使用台灣繁體中文常用詞。不要香港口音，不要港式語調，不要粵語感。不要中國播報腔，不要兒化音。語氣自然、親切、口語，像台灣日常對話。';
 
-  // Escape text for shell (quotes + dollar signs)
-  const escapedText = narrationText.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`');
-  const escapedStyle = style.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$');
-
-  const cmdParts = [
-    'omnivoice-local',
-    '--text', `"${escapedText}"`,
+  const args = [
+    '--text', narrationText,
     ...(refAudio ? ['--ref-audio', refAudio] : []),
-    '--ref-text', `"${refText}"`,
-    '--instruct', `"${instruct}"`,
+    '--ref-text', refText,
+    '--instruct', instruct,
     '--speed', speed,
-    '--style', `"${escapedStyle}"`,
+    '--style', style,
     '--output', audioPath,
   ];
-
-  const cmd = cmdParts.join(' ');
 
   console.log(`🎙️  Generating audio: ${audioPath}`);
   console.log(`   Text: ${narrationText.substring(0, 50)}...`);
 
   try {
-    await execAsync(cmd);
+    await execFileAsync('omnivoice-local', args, { encoding: 'utf8' });
   } catch (error) {
     // omnivoice sometimes exits non-zero but still generates the file
     if (!existsSync(audioPath)) {
@@ -81,6 +65,14 @@ export async function generateCourseNarration(
   outputDir: string,
   concurrency = Number(process.env.TEACH_ME_AUDIO_CONCURRENCY ?? '3'),
 ): Promise<Array<{ sceneId: string; audioFile: string; success: boolean }>> {
+  // Check tool availability before doing anything
+  const check = spawnSync('omnivoice-local', ['--version'], { stdio: 'ignore' });
+  if (check.error || check.status !== 0) {
+    console.warn('OmniVoice not found in PATH, skipping audio generation.');
+    console.warn('Install omnivoice-local or use --no-audio to suppress this warning.');
+    return scenes.map((scene) => ({ sceneId: scene.id, audioFile: '', success: false }));
+  }
+
   ensureDir(outputDir);
 
   console.log(`\n${'='.repeat(50)}`);

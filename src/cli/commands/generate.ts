@@ -117,6 +117,21 @@ export const generateCommand = {
         type: 'number',
         default: 3,
       })
+      .option('model', {
+        alias: 'm',
+        describe: 'LLM model to use (overrides LLM_MODEL env)',
+        type: 'string',
+      })
+      .option('provider', {
+        alias: 'p',
+        describe: 'LLM provider: anthropic | openclaw | openai | gemini (overrides LLM_PROVIDER env)',
+        type: 'string',
+      })
+      .option('no-audio', {
+        describe: 'Skip audio narration generation',
+        type: 'boolean',
+        default: false,
+      })
       .option('verbose', {
         alias: 'v',
         describe: 'Show detailed output',
@@ -131,6 +146,7 @@ export const generateCommand = {
       const outputDir = path.resolve(argv.output);
       const formats = (argv.format as string).split(',').map((f: string) => f.trim());
       const concurrency = argv.concurrency as number;
+      const skipAudio = argv['no-audio'] as boolean;
 
       console.log(`\n🎓 teach-me CLI v2.0\n`);
 
@@ -203,11 +219,10 @@ export const generateCommand = {
 
       // ============ Generate Audio ============
       const audioDir = path.join(outputDir, 'audio');
-      if (formats.includes('pptx') || formats.includes('html')) {
+      if (!skipAudio && (formats.includes('pptx') || formats.includes('html'))) {
         try {
           const audioSpinner = createSpinner('生成音頻旁白...');
           audioSpinner.start();
-          // Config reads from env vars; omnivoice.ts has matching defaults
           const audioResults = await generateCourseNarration(classroom.scenes, audioDir);
           const successCount = audioResults.filter((r) => r.success).length;
           audioSpinner.succeed(`音頻生成完成: ${successCount}/${audioResults.length} 成功`);
