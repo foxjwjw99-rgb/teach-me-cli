@@ -271,8 +271,8 @@ export const generateCommand = {
       console.log('🎓 課程生成完成！');
       console.log('='.repeat(50));
       console.log(`\n📁 輸出檔案:`);
-      exports.forEach((file) => {
-        console.log(`   • ${file}`);
+      exports.forEach(({ label, path: p }) => {
+        console.log(`   • [${label}] ${p}`);
       });
       console.log(`\n🎉 完成！`);
     } catch (error) {
