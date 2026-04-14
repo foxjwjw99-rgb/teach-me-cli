@@ -114,11 +114,11 @@ export type GenerationProgress = z.infer<typeof GenerationProgressSchema>;
 
 export const ConfigSchema = z.object({
   omnivoice: z.object({
-    refAudio: z.string().default('/Users/huli/.openclaw/workspace/voice-clones/jimmy-current-clone-reference.wav'),
-    refText: z.string().default('这是现在我们学校流行的装饰品了。'),
-    instruct: z.string().default('female, very low pitch'),
-    speed: z.number().default(0.9),
-    style: z.string().default('請用台灣國語的感覺說話，使用台灣繁體中文常用詞。不要香港口音，不要港式語調，不要粵語感。不要中國播報腔，不要兒化音。語氣自然、親切、口語，像台灣日常對話。'),
+    refAudio: z.string().optional(),
+    refText: z.string().optional(),
+    instruct: z.string().optional(),
+    speed: z.number().optional(),
+    style: z.string().optional(),
   }).optional(),
   generation: z.object({
     parallelScenes: z.number().default(3),

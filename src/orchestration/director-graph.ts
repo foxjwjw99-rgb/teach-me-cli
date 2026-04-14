@@ -3,6 +3,7 @@ import pLimit from 'p-limit';
 import type { Scene, Classroom, GenerationProgress } from '../types.js';
 import { OpenClawLLMAdapter } from './llm-adapter.js';
 import { buildOutlinePrompt, buildContentPrompt, buildActionsPrompt } from './prompt-builder.js';
+import { parseLLMJson } from '../utils/parse-json.js';
 
 // ============== State Definition ==============
 
@@ -36,26 +37,6 @@ const CourseGeneratorState = Annotation.Root({
 type CourseGeneratorStateType = typeof CourseGeneratorState.State;
 
 // ============== Helpers ==============
-
-/**
- * Strip markdown code fences and parse JSON from an LLM response.
- * Throws with the raw response text on parse failure for easier debugging.
- */
-function parseLLMJson<T>(text: string, context: string): T {
-  const cleaned = text
-    .replace(/```json\n?/g, '')
-    .replace(/```\n?/g, '')
-    .trim();
-  try {
-    return JSON.parse(cleaned) as T;
-  } catch (err) {
-    throw new Error(
-      `[${context}] Failed to parse JSON from LLM response.\n` +
-      `Parse error: ${err}\n` +
-      `Raw response (first 500 chars): ${cleaned.slice(0, 500)}`
-    );
-  }
-}
 
 // ============== Nodes ==============
 
