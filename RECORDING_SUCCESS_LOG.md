@@ -40,7 +40,7 @@ Container: WebM
 | Classroom page (query params) | ✅ | `?mode=record&autoplay=1` functional |
 | Recorder Package | ✅ | Fixed file handling |
 | Playwright Browser | ✅ | Chromium launched successfully |
-| FFmpeg Integration | ✅ | Video encoding functional |
+| Browser-native WebM capture | ✅ | Playwright video capture functional |
 | CLI Wrapper | ✅ | Parameters parsed correctly |
 | File Output | ✅ | WebM saved to expected location |
 
@@ -50,7 +50,7 @@ Container: WebM
 
 1. ✅ **Browser Launch**: Chromium headless mode started correctly
 2. ✅ **Video Recording**: Playwright video API captured the screen
-3. ✅ **Encoding**: FFmpeg encoded VP8 video in real-time
+3. ✅ **Encoding**: Playwright finalized browser-native WebM video successfully
 4. ✅ **Timing**: Recording completed within 30s timeout
 5. ✅ **File Management**: Video file moved from temp to output directory
 6. ✅ **Error Handling**: All system functions executed without crashes
@@ -66,14 +66,14 @@ Container: WebM
 
 ### Video Frames
 - **Estimated Frame Count**: ~525 frames (at 25 fps)
-- **Encoding**: Real-time VP8 with FFmpeg
+- **Encoding**: Browser-native WebM output via Playwright
 
 ### Process Chain
 1. CLI received parameters
 2. Playwright launched Chromium
 3. Navigated to: `http://localhost:3000/classroom/test-001?mode=record&autoplay=1`
 4. Page loaded and started playback
-5. FFmpeg captured video frames
+5. Playwright captured and buffered video frames
 6. PlaybackEngine completed playback
 7. Browser context closed
 8. Video file finalized

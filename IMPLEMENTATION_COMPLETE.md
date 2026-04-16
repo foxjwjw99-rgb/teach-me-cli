@@ -102,7 +102,7 @@ pnpm record --classroom <id> --output <path> [options]
 ```
 用戶執行
   ↓
-pnpm record --classroom math-101 --output ./video.mp4
+pnpm record --classroom math-101 --output ./video.webm
   ↓
 CLI (tools/record-cli.ts)
   ├─ 驗證參數
@@ -132,7 +132,7 @@ CLI (tools/record-cli.ts)
          ↓
   CLI 顯示結果
      ↓
- ✓ ./video.mp4 (45.3s)
+ ✓ ./video.webm (45.3s)
 ```
 
 ---
@@ -146,7 +146,7 @@ CLI (tools/record-cli.ts)
 pnpm dev
 
 # 另一個終端：錄製
-pnpm record --classroom intro-course --output ./intro.mp4
+pnpm record --classroom intro-course --output ./intro.webm
 ```
 
 ### 完整範例
@@ -160,14 +160,14 @@ pnpm dev
 # 3. 在另一個終端錄製
 pnpm record \
   --classroom physics-201 \
-  --output ./output/physics.mp4 \
+  --output ./output/physics.webm \
   --viewport 1280x720 \
   --timeout 300000 \
   --verbose
 
 # 4. 等待完成
 # ✓ Recording completed successfully
-# ✓ Output: ./output/physics.mp4
+# ✓ Output: ./output/physics.webm
 # ✓ Duration: 2m 15s
 ```
 
@@ -192,12 +192,12 @@ pnpm record \
 
 ✅ 重用現有 classroom playback/rendering stack  
 ✅ 不建立獨立的 slide-to-video renderer  
-✅ 輸出 MP4 保留原始課堂外觀和時序  
+✅ 輸出 WebM 保留原始課堂外觀和時序  
 ✅ 實現 record mode 供播放引擎使用  
 ✅ Auto-advance 場景無需用戶互動  
 ✅ 發送清晰的完成信號  
 ✅ Headless recorder package  
-✅ 監聽完成事件並保存 MP4  
+✅ 監聽完成事件並保存 WebM  
 ✅ 支援 1920x1080 視口（可配置）  
 ✅ 完整錯誤處理  
 ✅ CLI 命令集成  
@@ -230,7 +230,7 @@ pnpm record \
 1. ✅ 執行 `pnpm install` 確保依賴就緒
 2. ✅ 執行 `pnpm dev` 啟動應用
 3. ✅ 執行 `pnpm record --help` 查看 CLI 幫助
-4. ✅ 測試錄製：`pnpm record --classroom test --output test.mp4 --verbose`
+4. ✅ 測試錄製：`pnpm record --classroom test --output test.webm --verbose`
 
 ### 未來增強
 - 新增進度報告 UI
@@ -263,11 +263,11 @@ pnpm install
 pnpm dev &
 
 # 錄製課堂
-pnpm record --classroom math-101 --output ./math-101.mp4
+pnpm record --classroom math-101 --output ./math-101.webm
 
 # 查看結果
-ls -lh math-101.mp4
-file math-101.mp4
+ls -lh math-101.webm
+file math-101.webm
 ```
 
 ---

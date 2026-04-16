@@ -1,3 +1,12 @@
+> **Jimmy 這個 fork 採用 hosted-first 路線，預設透過 open.maic.chat 使用。**
+>
+> - ✅ 一般使用者不需要本地部署
+> - ✅ hosted 流程不需要管理 provider key
+> - ✅ 可以直接透過 OpenClaw skill 生成課堂
+> - ✅ 本地 repo setup 主要給貢獻者與維護者使用
+>
+> **如果你要完整 self-hosted 部署文件，請看 [upstream OpenMAIC](https://github.com/THU-MAIC/OpenMAIC)。**
+
 <!-- <p align="center">
   <img src="assets/logo-horizontal.png" alt="OpenMAIC" width="420"/>
 </p> -->
@@ -14,7 +23,6 @@
   <a href="https://jcst.ict.ac.cn/en/article/doi/10.1007/s11390-025-6000-0"><img src="https://img.shields.io/badge/Paper-JCST'26-blue?style=flat-square" alt="Paper"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg?style=flat-square" alt="License: AGPL-3.0"/></a>
   <a href="https://open.maic.chat/"><img src="https://img.shields.io/badge/Demo-Live-brightgreen?style=flat-square" alt="Live Demo"/></a>
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FTHU-MAIC%2FOpenMAIC&envDescription=Configure%20at%20least%20one%20LLM%20provider%20API%20key%20(e.g.%20OPENAI_API_KEY%2C%20ANTHROPIC_API_KEY).%20All%20providers%20are%20optional.&envLink=https%3A%2F%2Fgithub.com%2FTHU-MAIC%2FOpenMAIC%2Fblob%2Fmain%2F.env.example&project-name=openmaic&framework=nextjs"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="20"/></a>
   <a href="#-openclaw-集成"><img src="https://img.shields.io/badge/OpenClaw-集成-F4511E?style=flat-square" alt="OpenClaw 集成"/></a>
   <a href="https://github.com/THU-MAIC/OpenMAIC/stargazers"><img src="https://img.shields.io/github/stars/THU-MAIC/OpenMAIC?style=flat-square" alt="Stars"/></a>
   <br/>
@@ -74,101 +82,54 @@ https://github.com/user-attachments/assets/dbd013f6-9fab-43c5-a788-b47126cff7a8
 
 ## 🚀 快速开始
 
-### 环境要求
+### 大多数用户：通过 OpenClaw 使用 hosted 模式
+
+这个 fork 的文档默认面向 **hosted-first** 使用方式。
+
+1. `clawhub install openmaic`
+2. 在 [open.maic.chat](https://open.maic.chat/) 获取访问码
+3. 把访问码保存到 OpenClaw 的 OpenMAIC skill 配置中
+4. 直接告诉你的助手你想学什么
+
+正常的 hosted 使用流程 **不需要** 本地部署、provider key、Docker 或 Vercel。
+
+### 本地开发（贡献者）
+
+这个仓库仍然保留了完整应用代码，方便开发、调试和贡献。下面的步骤是给贡献者用的，不是普通 hosted 用户的必经流程。
+
+#### 环境要求
 
 - **Node.js** >= 20
 - **pnpm** >= 10
 
-### 1. 克隆 & 安装
+#### 克隆与安装
 
 ```bash
-git clone https://github.com/THU-MAIC/OpenMAIC.git
-cd OpenMAIC
+git clone https://github.com/foxjwjw99-rgb/teach-me-cli.git
+cd teach-me-cli
 pnpm install
 ```
 
-### 2. 配置
+#### 配置本地环境
 
 ```bash
 cp .env.example .env.local
 ```
 
-至少填写一个 LLM 服务商的 API Key：
+只有在你要开发本地 / self-hosted 流程时，才需要填写 provider key。
+通过 `open.maic.chat` 使用 OpenClaw 的 hosted 流程 **不需要** 这些变量。
 
-```env
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=...
-GROK_API_KEY=xai-...
-```
-
-也可以通过 `server-providers.yml` 配置服务商：
-
-```yaml
-providers:
-  openai:
-    apiKey: sk-...
-  anthropic:
-    apiKey: sk-ant-...
-```
-
-支持的服务商：**OpenAI**、**Anthropic**、**Google Gemini**、**DeepSeek**、**MiniMax**、**Grok (xAI)** 以及任何兼容 OpenAI API 的服务。
-
-MiniMax 快速示例：
-
-```env
-MINIMAX_API_KEY=...
-MINIMAX_BASE_URL=https://api.minimaxi.com/anthropic/v1
-DEFAULT_MODEL=minimax:MiniMax-M2.7-highspeed
-
-TTS_MINIMAX_API_KEY=...
-TTS_MINIMAX_BASE_URL=https://api.minimaxi.com
-
-IMAGE_MINIMAX_API_KEY=...
-IMAGE_MINIMAX_BASE_URL=https://api.minimaxi.com
-
-VIDEO_MINIMAX_API_KEY=...
-VIDEO_MINIMAX_BASE_URL=https://api.minimaxi.com
-```
-
-> **推荐模型：** **Gemini 3 Flash** — 效果与速度的最佳平衡。追求最高质量可选 **Gemini 3.1 Pro**（速度较慢）。
->
-> 如果希望 OpenMAIC 服务端默认走 Gemini，还需要额外设置 `DEFAULT_MODEL=google:gemini-3-flash-preview`。
->
-> 如果希望默认走 MiniMax，可设置 `DEFAULT_MODEL=minimax:MiniMax-M2.7-highspeed`。
-
-### 3. 启动
+#### 本地运行
 
 ```bash
 pnpm dev
 ```
 
-打开 **http://localhost:3000** 开始学习！
+打开 **http://localhost:3000** 进行本地开发。
 
-### 4. 生产环境构建
+### Self-hosted 部署
 
-```bash
-pnpm build && pnpm start
-```
-
-### Vercel 部署
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FTHU-MAIC%2FOpenMAIC&envDescription=Configure%20at%20least%20one%20LLM%20provider%20API%20key%20(e.g.%20OPENAI_API_KEY%2C%20ANTHROPIC_API_KEY).%20All%20providers%20are%20optional.&envLink=https%3A%2F%2Fgithub.com%2FTHU-MAIC%2FOpenMAIC%2Fblob%2Fmain%2F.env.example&project-name=openmaic&framework=nextjs)
-
-或者手动部署：
-
-1. Fork 本仓库
-2. 导入到 [Vercel](https://vercel.com/new)
-3. 配置环境变量（至少一个 LLM API Key）
-4. 部署
-
-### Docker 部署
-
-```bash
-cp .env.example .env.local
-# 编辑 .env.local 填入你的 API Key，然后：
-docker compose up --build
-```
+这个 fork 维护为 **hosted-first** 发行版。如果你需要完整的 Vercel、Docker 或自建部署文档，请查看 [upstream OpenMAIC](https://github.com/THU-MAIC/OpenMAIC)。
 
 ### PDF 解析
 

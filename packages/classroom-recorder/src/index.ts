@@ -5,7 +5,7 @@ import { validateOptions, createLogger, formatDuration } from './utils';
 const log = createLogger('Orchestrator');
 
 /**
- * Record a classroom to MP4 video
+ * Record a classroom to browser-native WebM video
  *
  * Main entry point for classroom recording. Handles:
  * - Validation of options
@@ -21,7 +21,7 @@ const log = createLogger('Orchestrator');
  * const result = await recordClassroom({
  *   classroomId: 'classroom-123',
  *   baseUrl: 'http://localhost:3000',
- *   outputPath: './output/classroom-123.mp4',
+ *   outputPath: './output/classroom-123.webm',
  *   viewport: { width: 1920, height: 1080 },
  *   timeout: 120000,
  * });

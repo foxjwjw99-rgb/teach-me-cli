@@ -13,7 +13,7 @@ describe('validateOptions', () => {
     const options: RecordingOptions = {
       classroomId: 'test-123',
       baseUrl: 'http://localhost:3000',
-      outputPath: './output/test.mp4',
+      outputPath: './output/test.webm',
     };
 
     const result = validateOptions(options);
@@ -24,7 +24,7 @@ describe('validateOptions', () => {
   test('should reject missing classroomId', () => {
     const options = {
       baseUrl: 'http://localhost:3000',
-      outputPath: './output/test.mp4',
+      outputPath: './output/test.webm',
     };
 
     const result = validateOptions(options);
@@ -35,7 +35,7 @@ describe('validateOptions', () => {
   test('should reject missing baseUrl', () => {
     const options = {
       classroomId: 'test-123',
-      outputPath: './output/test.mp4',
+      outputPath: './output/test.webm',
     };
 
     const result = validateOptions(options);
@@ -58,7 +58,7 @@ describe('validateOptions', () => {
     const options: RecordingOptions = {
       classroomId: 'test-123',
       baseUrl: 'http://localhost:3000',
-      outputPath: './output/test.mp4',
+      outputPath: './output/test.webm',
       viewport: { width: 0, height: 0 },
     };
 
@@ -71,12 +71,24 @@ describe('validateOptions', () => {
     const options: RecordingOptions = {
       classroomId: 'test-123',
       baseUrl: 'http://localhost:3000',
-      outputPath: './output/test.mp4',
+      outputPath: './output/test.webm',
       viewport: { width: 1920, height: 1080 },
     };
 
     const result = validateOptions(options);
     expect(result.valid).toBe(true);
+  });
+
+  test('should reject non-webm output paths', () => {
+    const options: RecordingOptions = {
+      classroomId: 'test-123',
+      baseUrl: 'http://localhost:3000',
+      outputPath: './output/test.mp4',
+    };
+
+    const result = validateOptions(options);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('.webm');
   });
 });
 

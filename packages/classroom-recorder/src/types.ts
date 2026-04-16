@@ -8,7 +8,7 @@ export interface RecordingOptions {
   /** Base URL where classroom is served (e.g., http://localhost:3000) */
   baseUrl: string;
 
-  /** Output file path for the MP4 video */
+  /** Output file path for the recorded video. Current implementation writes WebM. */
   outputPath: string;
 
   /** Viewport dimensions (default: 1920x1080) */

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * CLI for recording classrooms to MP4
- * 
+ * CLI for recording classrooms to WebM
+ *
  * Usage:
- *   teachme record --classroom <id> --output <path> [--viewport width:height] [--timeout ms]
- *   teachme record --help
+ *   pnpm record --classroom <id> --output <path.webm> [--viewport width:height] [--timeout ms]
+ *   pnpm record --help
  */
 
 import { program } from 'commander';
@@ -26,11 +26,11 @@ interface RecordOptions {
 
 async function main() {
   program
-    .name('teachme record')
-    .description('Record a classroom to MP4 video')
+    .name('pnpm record')
+    .description('Record a classroom to WebM video')
     .version('0.1.0')
     .option('-c, --classroom <id>', 'Classroom ID to record', '')
-    .option('-o, --output <path>', 'Output MP4 file path', '')
+    .option('-o, --output <path>', 'Output WebM file path', '')
     .option('-v, --viewport <dimensions>', 'Viewport dimensions (WIDTHxHEIGHT), default: 1920x1080')
     .option('-t, --timeout <ms>', 'Recording timeout in milliseconds, default: 120000')
     .option('-u, --base-url <url>', 'Base URL of the app (default: http://localhost:3000)')
@@ -46,6 +46,11 @@ async function main() {
       if (!options.output) {
         log.error('Error: --output is required');
         program.outputHelp();
+        process.exit(1);
+      }
+
+      if (!options.output.toLowerCase().endsWith('.webm')) {
+        log.error('Error: --output must end with .webm (current recorder writes WebM)');
         process.exit(1);
       }
 
@@ -129,9 +134,13 @@ async function main() {
   program.on('--help', () => {
     console.log('');
     console.log('Examples:');
-    console.log('  $ teachme record --classroom math-101 --output ./video.mp4');
-    console.log('  $ teachme record --classroom physics-201 --output ./output/physics.mp4 --viewport 1280x720');
-    console.log('  $ teachme record --classroom english-301 --output ./video.mp4 --timeout 300000 --verbose');
+    console.log('  $ pnpm record --classroom math-101 --output ./video.webm');
+    console.log(
+      '  $ pnpm record --classroom physics-201 --output ./output/physics.webm --viewport 1280x720',
+    );
+    console.log(
+      '  $ pnpm record --classroom english-301 --output ./video.webm --timeout 300000 --verbose',
+    );
     console.log('');
   });
 

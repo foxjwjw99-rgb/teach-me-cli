@@ -1,6 +1,6 @@
 # Classroom Recorder Integration Guide
 
-This guide explains how to integrate the `@openmaic/classroom-recorder` package into the teach-me-cli project.
+This guide explains how to integrate the `@openmaic/classroom-recorder` package into the OpenMAIC project.
 
 ## Setup Steps
 
@@ -52,7 +52,7 @@ const log = createLogger('RecordCLI');
 
 export async function recordCommand(argv: string[]) {
   const classroomId = argv[0];
-  const outputPath = argv[1] || `./output/${classroomId}.mp4`;
+  const outputPath = argv[1] || `./output/${classroomId}.webm`;
 
   if (!classroomId) {
     console.error('Usage: record <classroom-id> [output-path]');
@@ -89,7 +89,7 @@ export async function recordCommand(argv: string[]) {
 Usage:
 
 ```bash
-pnpm record classroom-123 ./output/video.mp4
+pnpm record classroom-123 ./output/video.webm
 ```
 
 ## Playwright Configuration
@@ -195,7 +195,7 @@ curl "http://localhost:3000/classroom/test-123?mode=record&autoplay=1"
 3. Use the CLI:
 
 ```bash
-pnpm record test-123 ./test-output.mp4
+pnpm record test-123 ./test-output.webm
 ```
 
 ### E2E Testing
@@ -212,11 +212,11 @@ test('should record classroom to mp4', async () => {
   const result = await recordClassroom({
     classroomId: 'test-classroom',
     baseUrl: 'http://localhost:3000',
-    outputPath: './test-output.mp4',
+    outputPath: './test-output.webm',
   });
 
   expect(result.success).toBe(true);
-  expect(result.outputPath).toBe('./test-output.mp4');
+  expect(result.outputPath).toBe('./test-output.webm');
 });
 ```
 

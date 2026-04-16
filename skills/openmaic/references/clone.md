@@ -21,8 +21,8 @@ Establish which OpenMAIC checkout will be used for setup and runtime actions.
 Clone:
 
 ```bash
-git clone https://github.com/THU-MAIC/OpenMAIC.git
-cd OpenMAIC
+git clone https://github.com/foxjwjw99-rgb/teach-me-cli.git
+cd teach-me-cli
 ```
 
 Install dependencies:

@@ -1,3 +1,5 @@
+import type { RecordingOptions } from './types';
+
 /**
  * Simple logger utility for consistent output
  */
@@ -5,15 +7,24 @@ export function createLogger(namespace: string) {
   return {
     info: (message: string, data?: unknown) => {
       const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}] [${namespace}] ℹ️  ${message}`, data ? `\n${JSON.stringify(data, null, 2)}` : '');
+      console.log(
+        `[${timestamp}] [${namespace}] ℹ️  ${message}`,
+        data ? `\n${JSON.stringify(data, null, 2)}` : '',
+      );
     },
     warn: (message: string, data?: unknown) => {
       const timestamp = new Date().toISOString();
-      console.warn(`[${timestamp}] [${namespace}] ⚠️  ${message}`, data ? `\n${JSON.stringify(data, null, 2)}` : '');
+      console.warn(
+        `[${timestamp}] [${namespace}] ⚠️  ${message}`,
+        data ? `\n${JSON.stringify(data, null, 2)}` : '',
+      );
     },
     error: (message: string, data?: unknown) => {
       const timestamp = new Date().toISOString();
-      console.error(`[${timestamp}] [${namespace}] ❌ ${message}`, data ? `\n${JSON.stringify(data, null, 2)}` : '');
+      console.error(
+        `[${timestamp}] [${namespace}] ❌ ${message}`,
+        data ? `\n${JSON.stringify(data, null, 2)}` : '',
+      );
     },
     debug: (message: string, data?: unknown) => {
       if (process.env.DEBUG) {
@@ -30,7 +41,10 @@ export function createLogger(namespace: string) {
 /**
  * Validate recording options
  */
-export function validateOptions(options: any): { valid: boolean; error?: string } {
+export function validateOptions(options: Partial<RecordingOptions>): {
+  valid: boolean;
+  error?: string;
+} {
   if (!options.classroomId) {
     return { valid: false, error: 'classroomId is required' };
   }
@@ -41,6 +55,13 @@ export function validateOptions(options: any): { valid: boolean; error?: string 
 
   if (!options.outputPath) {
     return { valid: false, error: 'outputPath is required' };
+  }
+
+  if (!String(options.outputPath).toLowerCase().endsWith('.webm')) {
+    return {
+      valid: false,
+      error: 'outputPath must end with .webm (current recorder writes browser-native WebM output)',
+    };
   }
 
   if (options.viewport) {

@@ -20,7 +20,7 @@ async function main() {
   const result = await recordClassroom({
     classroomId: 'example-classroom-2',
     baseUrl: 'http://localhost:3000',
-    outputPath: './output/example-1280x720.mp4',
+    outputPath: './output/example-1280x720.webm',
 
     // Custom viewport for 16:9 aspect ratio
     viewport: {
