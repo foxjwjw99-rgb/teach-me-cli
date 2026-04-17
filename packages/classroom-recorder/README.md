@@ -1,6 +1,6 @@
 # @openmaic/classroom-recorder
 
-Headless classroom recording pipeline for teach-me-cli. Captures classrooms as MP4 videos using Playwright browser automation.
+Headless classroom recording pipeline for OpenMAIC. Captures classrooms as browser-native WebM videos using Playwright browser automation.
 
 ## Features
 
@@ -27,7 +27,7 @@ import { recordClassroom } from '@openmaic/classroom-recorder';
 const result = await recordClassroom({
   classroomId: 'classroom-123',
   baseUrl: 'http://localhost:3000',
-  outputPath: './output/classroom-123.mp4',
+  outputPath: './output/classroom-123.webm',
 });
 
 if (result.success) {
@@ -46,7 +46,7 @@ import { recordClassroom } from '@openmaic/classroom-recorder';
 const result = await recordClassroom({
   classroomId: 'classroom-456',
   baseUrl: 'http://localhost:3000',
-  outputPath: './recordings/classroom-456.mp4',
+  outputPath: './recordings/classroom-456.webm',
   
   // Custom viewport (default: 1920x1080)
   viewport: {
@@ -74,7 +74,7 @@ Main entry point for recording a classroom.
 
 - `classroomId` (string, required): Unique identifier of the classroom to record
 - `baseUrl` (string, required): Base URL where classroom is served (e.g., `http://localhost:3000`)
-- `outputPath` (string, required): Output file path for the MP4 video
+- `outputPath` (string, required): Output file path for the recorded WebM video
 - `viewport` (object, optional): Recording viewport dimensions
   - `width` (number): Default: 1920
   - `height` (number): Default: 1080
@@ -146,7 +146,7 @@ All errors are captured and returned in the result object.
 
 - **Memory**: Headless recording uses minimal memory (~100-200MB)
 - **Duration**: Recording time approximately equals classroom playback duration
-- **Disk Space**: Output MP4 size depends on viewport and codec (typically 50-200MB per minute)
+- **Disk Space**: Output WebM size depends on viewport and codec (typically 50-200MB per minute)
 - **CPU**: Moderate CPU usage during rendering and video encoding
 
 ## Troubleshooting
@@ -160,7 +160,7 @@ Ensure:
 
 ### Large output file
 
-The recorded MP4 includes all visual rendering. To optimize:
+The recorded WebM includes all visual rendering. To optimize:
 - Reduce viewport dimensions
 - Use ffmpeg for post-processing (outside this package)
 - Consider frame rate limiting (future enhancement)
@@ -177,7 +177,7 @@ Check:
 For CLI usage, see `tools/record-cli.ts` in the main project.
 
 ```bash
-pnpm record --classroom <id> --output ./output/video.mp4
+pnpm record --classroom <id> --output ./output/video.webm
 ```
 
 ## Development
@@ -205,4 +205,4 @@ import type { RecordingOptions, RecordingResult } from '@openmaic/classroom-reco
 
 ## License
 
-Part of teach-me-cli project. See LICENSE file in root.
+Part of the OpenMAIC project. See LICENSE file in root.

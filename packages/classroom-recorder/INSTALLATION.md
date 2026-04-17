@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Successfully created a **production-ready classroom recording package** for the teach-me-cli project. The `@openmaic/classroom-recorder` package provides a headless recording solution that captures classrooms as MP4 videos using Playwright browser automation.
+Successfully created a **production-ready classroom recording package** for the OpenMAIC project. The `@openmaic/classroom-recorder` package provides a headless recording solution that currently captures classrooms as browser-native WebM videos using Playwright browser automation.
 
 **Total Implementation:**
 - 🎯 2,083 lines of code
@@ -95,7 +95,7 @@ packages/classroom-recorder/src/
 interface RecordingOptions {
   classroomId: string;        // Required: unique classroom ID
   baseUrl: string;            // Required: e.g., http://localhost:3000
-  outputPath: string;         // Required: output MP4 file path
+  outputPath: string;         // Required: output WebM file path
   viewport?: {width, height}; // Optional: default 1920x1080
   timeout?: number;           // Optional: default 120000ms
   onLog?: (msg) => void;      // Optional: progress callback
@@ -134,7 +134,7 @@ import { recordClassroom } from '@openmaic/classroom-recorder';
 const result = await recordClassroom({
   classroomId: 'math-101',
   baseUrl: 'http://localhost:3000',
-  outputPath: './output/math-101.mp4',
+  outputPath: './output/math-101.webm',
 });
 
 if (result.success) {
@@ -150,7 +150,7 @@ if (result.success) {
 const result = await recordClassroom({
   classroomId: 'physics-201',
   baseUrl: 'http://localhost:3000',
-  outputPath: './output/physics-201.mp4',
+  outputPath: './output/physics-201.webm',
   
   // Custom viewport (16:9 aspect ratio)
   viewport: { width: 1280, height: 720 },
@@ -314,7 +314,7 @@ pnpm dev
 pnpm node examples/basic.ts
 
 # Verify output
-file output/example-basic.mp4
+file output/example-basic.webm
 ```
 
 ---

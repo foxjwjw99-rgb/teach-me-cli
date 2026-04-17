@@ -13,11 +13,7 @@ import { mkdir } from 'fs/promises';
 
 const log = createLogger('BatchRecordingExample');
 
-const CLASSROOMS = [
-  'math-101',
-  'physics-201',
-  'chemistry-301',
-];
+const CLASSROOMS = ['math-101', 'physics-201', 'chemistry-301'];
 
 async function recordBatch() {
   log.info(`Starting batch recording of ${CLASSROOMS.length} classrooms`);
@@ -35,7 +31,7 @@ async function recordBatch() {
     const result = await recordClassroom({
       classroomId,
       baseUrl: 'http://localhost:3000',
-      outputPath: `./output/batch/${classroomId}.mp4`,
+      outputPath: `./output/batch/${classroomId}.webm`,
       onLog: (message) => {
         log.debug(`[${classroomId}] ${message}`);
       },

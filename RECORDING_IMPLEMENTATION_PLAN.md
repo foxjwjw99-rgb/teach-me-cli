@@ -1,7 +1,7 @@
 # Classroom Recording/Export Pipeline - Implementation Plan
 
 ## Overview
-Add a recording pipeline that reuses the existing classroom playback/rendering stack to export classrooms as MP4 videos. The solution leverages the real PlaybackEngine, ActionEngine, and scene renderers with minimal new code.
+Add a recording pipeline that reuses the existing classroom playback/rendering stack to export classrooms as browser-native WebM videos. The solution leverages the real PlaybackEngine, ActionEngine, and scene renderers with minimal new code.
 
 ## Architecture
 
@@ -34,11 +34,11 @@ NEW monorepo package with three entry points:
 - Wait for playback ready signal
 - Start screen capture
 - Stop when `classroom:recording-complete` fires
-- Save output to `/output/<job-id>/final.mp4`
+- Save output to `/output/<job-id>/final.webm`
 
 #### 4. **CLI** (`tools/` or top-level commands)
-- **New**: `teachme record --classroom <id> --output ./output/demo.mp4`
-- **New**: `teachme export mp4 --classroom <id>`
+- **New**: `pnpm record --classroom <id> --output ./output/demo.webm`
+- **Future**: optional MP4 export after WebM capture
 
 ### B. Data Flow
 
@@ -51,7 +51,7 @@ Recorder Package
   ├─ Launch: http://localhost:3000/classroom/[id]?mode=record&autoplay=1
   ├─ Wait: page.on('classroom:recording-complete')
   ├─ Capture: Playwright video capture OR canvas-based frame capture
-  └─ Output: /output/<job-id>/final.mp4
+  └─ Output: /output/<job-id>/final.webm
 ```
 
 ### C. Non-Goals for MVP
@@ -112,8 +112,8 @@ Recorder Package
 
 **Commands:**
 ```bash
-pnpm record --classroom <id> --output ./video.mp4
-pnpm export mp4 --classroom <id> --out ./output
+pnpm record --classroom <id> --output ./video.webm
+# optional future step: convert WebM to MP4 after capture
 ```
 
 ---
@@ -198,11 +198,11 @@ Then `packages/classroom-recorder/package.json`:
 
 3. **Recorder Package**
    - Mock classroom endpoint locally
-   - Capture frame sequence, verify MP4 is valid
+   - Verify captured WebM is valid
    - Verify dimensions and frame rate
 
 4. **CLI**
-   - `pnpm record --classroom test-id --output ./test.mp4`
+   - `pnpm record --classroom test-id --output ./test.webm`
    - Verify output exists and plays
 
 ---
@@ -247,8 +247,8 @@ ffmpeg-static: (optional, for advanced processing)
 ✅ Classroom can playback in record mode via `?mode=record&autoplay=1`
 ✅ Playback completes deterministically without user interaction
 ✅ `classroom:recording-complete` event fires on completion
-✅ CLI command records classroom to MP4
-✅ Output MP4 preserves classroom visual style and timing
+✅ CLI command records classroom to WebM
+✅ Output WebM preserves classroom visual style and timing
 ✅ Interactive mode still works normally
 ✅ No separate slide-to-video renderer introduced
 
@@ -272,4 +272,4 @@ ffmpeg-static: (optional, for advanced processing)
 2. Test with classroom page manually (query params)
 3. Build recorder package (capture.ts)
 4. Wire CLI
-5. E2E test: `teachme record --classroom [known-id]`
+5. E2E test: `pnpm record --classroom [known-id] --output ./test.webm`

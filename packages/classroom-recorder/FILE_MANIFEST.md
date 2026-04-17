@@ -57,7 +57,7 @@ packages/classroom-recorder/
 - Full type definitions included
 
 #### 2. INTEGRATION.md (250 lines)
-**Purpose**: Integration guide for teach-me-cli main project
+**Purpose**: Integration guide for the main OpenMAIC project
 
 **Sections**:
 - Setup steps (5 phases)
@@ -152,7 +152,7 @@ packages/classroom-recorder/
 const result = await recordClassroom({
   classroomId: 'math-101',
   baseUrl: 'http://localhost:3000',
-  outputPath: './output/video.mp4'
+  outputPath: './output/video.webm'
 });
 ```
 
@@ -480,7 +480,7 @@ pnpm test
 
 ## License
 
-Part of teach-me-cli project. See root LICENSE file.
+Part of the OpenMAIC project. See root LICENSE file.
 
 ---
 

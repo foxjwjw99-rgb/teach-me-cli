@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully created the `@openmaic/classroom-recorder` package, a complete headless recording solution for the teach-me-cli project. The package captures classrooms as MP4 videos using Playwright browser automation.
+Successfully created the `@openmaic/classroom-recorder` package, a complete headless recording solution for the OpenMAIC project. The package currently captures classrooms as browser-native WebM videos using Playwright browser automation.
 
 ## Package Structure
 
@@ -108,7 +108,7 @@ async function recordClassroom(
 |-----------|------|----------|---------|-------------|
 | classroomId | string | ✓ | - | Unique classroom identifier |
 | baseUrl | string | ✓ | - | Base URL (e.g., `http://localhost:3000`) |
-| outputPath | string | ✓ | - | Output MP4 file path |
+| outputPath | string | ✓ | - | Output WebM file path |
 | viewport | object | ✗ | `{1920,1080}` | Recording dimensions |
 | timeout | number | ✗ | `120000` | Max duration in ms |
 | onLog | function | ✗ | - | Progress callback |
@@ -204,7 +204,7 @@ import { recordClassroom } from '@openmaic/classroom-recorder';
 const result = await recordClassroom({
   classroomId: 'math-101',
   baseUrl: 'http://localhost:3000',
-  outputPath: './output/math-101.mp4',
+  outputPath: './output/math-101.webm',
 });
 
 if (result.success) {
@@ -220,7 +220,7 @@ if (result.success) {
 await recordClassroom({
   classroomId: 'physics-201',
   baseUrl: 'http://localhost:3000',
-  outputPath: './output/physics-201.mp4',
+  outputPath: './output/physics-201.webm',
   viewport: { width: 1280, height: 720 }, // 16:9
   timeout: 5 * 60 * 1000, // 5 minutes
 });
@@ -232,7 +232,7 @@ await recordClassroom({
 await recordClassroom({
   classroomId: 'chem-301',
   baseUrl: 'http://localhost:3000',
-  outputPath: './output/chem-301.mp4',
+  outputPath: './output/chem-301.webm',
   onLog: (message) => {
     console.log(`[Recording] ${message}`);
   },
@@ -248,7 +248,7 @@ for (const id of classrooms) {
   const result = await recordClassroom({
     classroomId: id,
     baseUrl: 'http://localhost:3000',
-    outputPath: `./output/${id}.mp4`,
+    outputPath: `./output/${id}.webm`,
   });
 
   console.log(result.success ? `✓ ${id}` : `✗ ${id}`);
@@ -291,7 +291,7 @@ pnpm dev
 pnpm node examples/basic.ts
 
 # Verify output
-file output/example-basic.mp4
+file output/example-basic.webm
 ```
 
 ## Environment Variables
@@ -442,4 +442,4 @@ The classroom-recorder package is **production-ready** with:
 ✓ Clear API with sensible defaults
 ✓ Proper logging and debugging support
 
-**Ready to integrate into teach-me-cli!**
+**Ready to integrate into OpenMAIC!**

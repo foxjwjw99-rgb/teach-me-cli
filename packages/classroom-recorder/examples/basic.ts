@@ -19,7 +19,7 @@ async function main() {
   const result = await recordClassroom({
     classroomId: 'example-classroom-1',
     baseUrl: 'http://localhost:3000',
-    outputPath: './output/example-basic.mp4',
+    outputPath: './output/example-basic.webm',
     onLog: (message) => {
       log.info(`Progress: ${message}`);
     },

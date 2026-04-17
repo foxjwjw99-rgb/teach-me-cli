@@ -74,7 +74,7 @@ INPUT: RecordingOptions
   ┌─────────────────────────────────────┐
   │ classroomId: "math-101"             │
   │ baseUrl: "http://localhost:3000"    │
-  │ outputPath: "./output/video.mp4"    │
+  │ outputPath: "./output/video.webm"   │
   │ viewport: { w: 1920, h: 1080 }      │
   │ timeout: 120000                     │
   └────────────────┬────────────────────┘
@@ -149,7 +149,7 @@ INPUT: RecordingOptions
 OUTPUT: RecordingResult
   ┌──────────────────────────────────────┐
   │ success: true                        │
-  │ outputPath: "./output/video.mp4"     │
+  │ outputPath: "./output/video.webm"    │
   │ duration: 45000 (ms)                 │
   │ frameCount: 1350 (@30fps)            │
   │ error: null                          │

@@ -1,13 +1,13 @@
-# 🏫 OpenMAIC Hosted-Only — Study Tracker Integration
+# 🏫 OpenMAIC Hosted-First — Study Tracker Integration
 
-> **For Jimmy's fork: OpenMAIC is hosted-only via open.maic.chat**
+> **For Jimmy's fork: OpenMAIC is hosted-first via open.maic.chat**
 > 
-> - ✅ No local setup needed
-> - ✅ No provider keys to manage  
-> - ✅ No self-hosting complexity
+> - ✅ Normal usage does not need local setup
+> - ✅ No provider keys to manage for the hosted flow
 > - ✅ Generate classrooms via OpenClaw skill in seconds
+> - ✅ Local repo setup is only for contributors and maintainers
 >
-> **For self-hosted deployments**, see [upstream OpenMAIC](https://github.com/THU-MAIC/OpenMAIC).
+> **For full self-hosted deployment docs**, see [upstream OpenMAIC](https://github.com/THU-MAIC/OpenMAIC).
 
 ---
 
@@ -27,7 +27,6 @@
   <a href="https://jcst.ict.ac.cn/en/article/doi/10.1007/s11390-025-6000-0"><img src="https://img.shields.io/badge/Paper-JCST'26-blue?style=flat-square" alt="Paper"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg?style=flat-square" alt="License: AGPL-3.0"/></a>
   <a href="https://open.maic.chat/"><img src="https://img.shields.io/badge/Demo-Live-brightgreen?style=flat-square" alt="Live Demo"/></a>
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FTHU-MAIC%2FOpenMAIC&envDescription=Configure%20at%20least%20one%20LLM%20provider%20API%20key%20(e.g.%20OPENAI_API_KEY%2C%20ANTHROPIC_API_KEY).%20All%20providers%20are%20optional.&envLink=https%3A%2F%2Fgithub.com%2FTHU-MAIC%2FOpenMAIC%2Fblob%2Fmain%2F.env.example&project-name=openmaic&framework=nextjs"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="20"/></a>
   <a href="#-openclaw-integration"><img src="https://img.shields.io/badge/OpenClaw-Integration-F4511E?style=flat-square" alt="OpenClaw Integration"/></a>
   <a href="https://github.com/THU-MAIC/OpenMAIC/stargazers"><img src="https://img.shields.io/github/stars/THU-MAIC/OpenMAIC?style=flat-square" alt="Stars"/></a>
   <br/>
@@ -87,101 +86,54 @@ https://github.com/user-attachments/assets/b4ab35ac-f994-46b1-8957-e82fe87ff0e9
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Most users: hosted mode via OpenClaw
+
+This fork is documented for **hosted-first usage**.
+
+1. `clawhub install openmaic`
+2. Get an access code from [open.maic.chat](https://open.maic.chat/)
+3. Save it to your OpenClaw OpenMAIC skill config
+4. Tell your assistant what you want to learn
+
+You do **not** need local setup, provider keys, Docker, or Vercel for the normal hosted flow.
+
+### Local development for contributors
+
+This repository still contains the full app codebase for development, debugging, and contribution work. The setup below is for contributors, not for normal hosted usage.
+
+#### Prerequisites
 
 - **Node.js** >= 20
 - **pnpm** >= 10
 
-### 1. Clone & Install
+#### Clone & install
 
 ```bash
-git clone https://github.com/THU-MAIC/OpenMAIC.git
-cd OpenMAIC
+git clone https://github.com/foxjwjw99-rgb/teach-me-cli.git
+cd teach-me-cli
 pnpm install
 ```
 
-### 2. Configure
+#### Configure local environment
 
 ```bash
 cp .env.example .env.local
 ```
 
-Fill in at least one LLM provider key:
+Only fill provider keys if you are actively working on local/self-hosted development flows.
+Hosted OpenClaw usage via `open.maic.chat` does **not** need these variables.
 
-```env
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=...
-GROK_API_KEY=xai-...
-```
-
-You can also configure providers via `server-providers.yml`:
-
-```yaml
-providers:
-  openai:
-    apiKey: sk-...
-  anthropic:
-    apiKey: sk-ant-...
-```
-
-Supported providers: **OpenAI**, **Anthropic**, **Google Gemini**, **DeepSeek**, **MiniMax**, **Grok (xAI)**, and any OpenAI-compatible API.
-
-MiniMax quick examples:
-
-```env
-MINIMAX_API_KEY=...
-MINIMAX_BASE_URL=https://api.minimaxi.com/anthropic/v1
-DEFAULT_MODEL=minimax:MiniMax-M2.7-highspeed
-
-TTS_MINIMAX_API_KEY=...
-TTS_MINIMAX_BASE_URL=https://api.minimaxi.com
-
-IMAGE_MINIMAX_API_KEY=...
-IMAGE_MINIMAX_BASE_URL=https://api.minimaxi.com
-
-VIDEO_MINIMAX_API_KEY=...
-VIDEO_MINIMAX_BASE_URL=https://api.minimaxi.com
-```
-
-> **Recommended model:** **Gemini 3 Flash** — best balance of quality and speed. For highest quality (at slower speed), try **Gemini 3.1 Pro**.
->
-> If you want OpenMAIC server APIs to use Gemini by default, also set `DEFAULT_MODEL=google:gemini-3-flash-preview`.
->
-> If you want to use MiniMax as the default server model, set `DEFAULT_MODEL=minimax:MiniMax-M2.7-highspeed`.
-
-### 3. Run
+#### Run locally
 
 ```bash
 pnpm dev
 ```
 
-Open **http://localhost:3000** and start learning!
+Open **http://localhost:3000** for local development.
 
-### 4. Build for Production
+### Self-hosted deployment
 
-```bash
-pnpm build && pnpm start
-```
-
-### Vercel Deployment
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FTHU-MAIC%2FOpenMAIC&envDescription=Configure%20at%20least%20one%20LLM%20provider%20API%20key%20(e.g.%20OPENAI_API_KEY%2C%20ANTHROPIC_API_KEY).%20All%20providers%20are%20optional.&envLink=https%3A%2F%2Fgithub.com%2FTHU-MAIC%2FOpenMAIC%2Fblob%2Fmain%2F.env.example&project-name=openmaic&framework=nextjs)
-
-Or manually:
-
-1. Fork this repository
-2. Import into [Vercel](https://vercel.com/new)
-3. Set environment variables (at minimum one LLM API key)
-4. Deploy
-
-### Docker Deployment
-
-```bash
-cp .env.example .env.local
-# Edit .env.local with your API keys, then:
-docker compose up --build
-```
+This fork is maintained as a **hosted-first** distribution. If you want full self-hosted deployment instructions for Vercel, Docker, or custom infrastructure, use [upstream OpenMAIC](https://github.com/THU-MAIC/OpenMAIC).
 
 ### PDF Parsing
 

@@ -2,6 +2,8 @@
 
 Thank you for your interest in contributing to OpenMAIC! This guide will help you get started and ensure a smooth collaboration.
 
+> This repository is Jimmy's hosted-first OpenMAIC fork. Product usage is documented around `open.maic.chat`, while the local environment below is for contributors and maintainers.
+
 ## How to Contribute
 
 | Contribution type | What to do |
@@ -31,9 +33,9 @@ To avoid duplicate effort, please **comment on an issue** to claim it before you
 ## Getting Started
 
 ```bash
-# Clone the repository
-git clone https://github.com/THU-MAIC/OpenMAIC.git
-cd OpenMAIC
+# Clone this fork
+git clone https://github.com/foxjwjw99-rgb/teach-me-cli.git
+cd teach-me-cli
 
 # Install dependencies
 pnpm install
@@ -131,13 +133,14 @@ AI-assisted PRs are held to the same quality standard as any other PR. Community
 ## Project Structure
 
 ```
-OpenMAIC/
+teach-me-cli/
 ├── app/              # Next.js app router pages and API routes
 ├── components/       # React components
 ├── lib/              # Shared utilities and core logic
-├── packages/         # Internal packages (mathml2omml, pptxgenjs)
+├── packages/         # Internal packages and workspace packages
 ├── public/           # Static assets
-├── messages/         # i18n translation files
+├── skills/           # OpenClaw/OpenMAIC skill files
+├── tests/            # Test suites
 └── .github/          # Issue templates, PR template, CI workflows
 ```
 
