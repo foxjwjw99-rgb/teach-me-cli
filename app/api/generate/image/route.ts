@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     const apiKey = clientBaseUrl
-      ? clientApiKey || ''
+      ? clientApiKey ?? ''
       : resolveImageApiKey(providerId, clientApiKey);
     if (!apiKey) {
       return apiError(
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const baseUrl = clientBaseUrl ? clientBaseUrl : resolveImageBaseUrl(providerId, clientBaseUrl);
+    const baseUrl = clientBaseUrl ?? resolveImageBaseUrl(providerId);
 
     // Resolve dimensions from aspect ratio if not explicitly set
     if (!body.width && !body.height && body.aspectRatio) {

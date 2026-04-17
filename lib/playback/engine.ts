@@ -48,6 +48,17 @@ const log = createLogger('PlaybackEngine');
  */
 const CJK_LANG_THRESHOLD = 0.3;
 
+/** Fallback reading-time estimates used when no audio duration is available. */
+const READING_MS_PER_CJK_CHAR = 150;
+const READING_MS_PER_WORD = 240;
+const MIN_READING_MS = 2000;
+
+/** Delay before surfacing a proactive discussion trigger to the user. */
+const PROACTIVE_TRIGGER_DELAY_MS = 3000;
+
+/** Max wait for the browser's async voices-changed event before falling back. */
+const TTS_VOICES_LOAD_TIMEOUT_MS = 2000;
+
 export class PlaybackEngine {
   private scenes: Scene[] = [];
   private sceneIndex: number = 0;
@@ -502,8 +513,11 @@ export class PlaybackEngine {
           const isCJK = cjkCount > text.length * 0.3;
           const speed = this.callbacks.getPlaybackSpeed?.() ?? 1;
           const rawMs = isCJK
-            ? Math.max(2000, text.length * 150)
-            : Math.max(2000, text.split(/\s+/).filter(Boolean).length * 240);
+            ? Math.max(MIN_READING_MS, text.length * READING_MS_PER_CJK_CHAR)
+            : Math.max(
+                MIN_READING_MS,
+                text.split(/\s+/).filter(Boolean).length * READING_MS_PER_WORD,
+              );
           const readingMs = rawMs / speed;
           this.speechTimerStart = Date.now();
           this.speechTimerRemaining = readingMs;
@@ -613,7 +627,7 @@ export class PlaybackEngine {
           this.currentTrigger = trigger;
           this.callbacks.onProactiveShow?.(trigger);
           // Engine pauses here — user calls confirmDiscussion() or skipDiscussion()
-        }, 3000);
+        }, PROACTIVE_TRIGGER_DELAY_MS);
         break;
       }
 
@@ -764,11 +778,11 @@ export class PlaybackEngine {
         resolve();
       };
       window.speechSynthesis.addEventListener('voiceschanged', onVoicesChanged);
-      // Timeout after 2s to avoid hanging
+      // Timeout to avoid hanging when voiceschanged never fires
       setTimeout(() => {
         window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
         resolve();
-      }, 2000);
+      }, TTS_VOICES_LOAD_TIMEOUT_MS);
     });
 
     voices = window.speechSynthesis.getVoices();

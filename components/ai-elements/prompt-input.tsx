@@ -716,8 +716,9 @@ export const PromptInput = ({
                   controller.textInput.clear();
                 }
               })
-              .catch(() => {
+              .catch((err) => {
                 // Don't clear on error - user may want to retry
+                console.warn('[PromptInput] onSubmit failed', err);
               });
           } else {
             // Sync function completed without throwing, clear attachments
@@ -726,12 +727,14 @@ export const PromptInput = ({
               controller.textInput.clear();
             }
           }
-        } catch {
+        } catch (err) {
           // Don't clear on error - user may want to retry
+          console.warn('[PromptInput] onSubmit threw', err);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         // Don't clear on error - user may want to retry
+        console.warn('[PromptInput] submit pipeline failed', err);
       });
   };
 
