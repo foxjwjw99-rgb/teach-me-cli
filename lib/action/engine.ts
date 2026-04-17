@@ -173,7 +173,10 @@ export class ActionEngine {
         .then((audioStarted) => {
           if (!audioStarted) resolve();
         })
-        .catch(() => resolve());
+        .catch((err) => {
+          console.warn('[ActionEngine] audio playback error', err);
+          resolve();
+        });
     });
   }
 

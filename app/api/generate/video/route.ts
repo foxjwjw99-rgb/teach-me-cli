@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     const apiKey = clientBaseUrl
-      ? clientApiKey || ''
+      ? clientApiKey ?? ''
       : resolveVideoApiKey(providerId, clientApiKey);
     if (!apiKey) {
       return apiError(
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const baseUrl = clientBaseUrl ? clientBaseUrl : resolveVideoBaseUrl(providerId, clientBaseUrl);
+    const baseUrl = clientBaseUrl ?? resolveVideoBaseUrl(providerId);
 
     // Normalize options against provider capabilities
     const options = normalizeVideoOptions(providerId, body);
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       return apiError('CONTENT_SENSITIVE', 400, message);
     }
     log.error(
-      `Video generation failed [provider=${request.headers.get('x-video-provider') ?? 'kling'}, model=${request.headers.get('x-video-model') ?? 'default'}]:`,
+      `Video generation failed [provider=${request.headers.get('x-video-provider') ?? 'seedance'}, model=${request.headers.get('x-video-model') ?? 'default'}]:`,
       error,
     );
     return apiError('INTERNAL_ERROR', 500, message);
