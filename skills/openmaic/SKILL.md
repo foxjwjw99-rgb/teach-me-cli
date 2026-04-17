@@ -1,164 +1,251 @@
 ---
 name: openmaic
-description: Generate complete OpenMAIC courses (slides + quiz + TTS audio) locally and deploy to the OrbStack Docker container.
+description: Generate complete OpenMAIC courses via a staged local pipeline (research → outlines → scenes → TTS) and deploy to the OrbStack Docker container.
 user-invocable: true
 metadata: { "openclaw": { "emoji": "🏫" } }
 ---
 
-# /openmaic — Generate & Deploy Courses to OpenMAIC
+# /openmaic — Staged Local Course Generation
 
-When this skill is invoked, generate a complete course and deploy it to the local OpenMAIC instance.
+When this skill is invoked, orchestrate a 9-phase pipeline that mirrors the server-side `generateClassroom()` flow in [lib/server/classroom-generation.ts](../../lib/server/classroom-generation.ts), but run entirely by the calling agent's own LLM, tools, and local filesystem.
 
 ## Usage
 
 ```
-/openmaic <topic>                      # Generate course on any topic
-/openmaic <topic> --no-tts             # Skip TTS audio generation
-/openmaic <topic> --lang en            # Override language (zh-TW default)
-/openmaic <topic> --id my-id           # Custom classroom ID (default: auto from topic)
-/openmaic <topic> --tts gemini         # Use Gemini TTS instead of local Qwen3
-/openmaic <topic> --voice Kore         # Override voice (depends on TTS engine)
+/openmaic <topic>                       # Default: staged, zh-TW, TTS on, research on
+/openmaic <topic> --no-tts              # Skip TTS audio generation
+/openmaic <topic> --no-research         # Skip Phase 2 web search
+/openmaic <topic> --agents generate     # Phase 3: generate custom teacher/student personas (default: skip)
+/openmaic <topic> --lang en             # Override language (zh-TW default)
+/openmaic <topic> --id my-id            # Custom classroom ID
+/openmaic <topic> --tts gemini          # Use Gemini TTS instead of local Qwen3
+/openmaic <topic> --voice Kore          # Override voice (depends on TTS engine)
 ```
 
 ## Environment
 
 - **OpenMAIC URL**: `https://openmaic.openmaic.orb.local` (Docker container via OrbStack)
 - **Local TTS server**: `http://localhost:9880` (Qwen3-TTS, check with `curl http://localhost:9880/health`)
-- **Gemini TTS**: requires `GEMINI_API_KEY` env var and `pip install google-genai`
-- **Data folder**: `/Users/huli/Desktop/teach-me-cli/data/` (bind-mounted to `/app/data` in container)
+- **Gemini TTS**: requires `GEMINI_API_KEY` env var
+- **Data folder**: `/Users/huli/Desktop/teach-me-cli/data/classrooms/` (bind-mounted to container)
 
 > ⚠️ `save-classroom.ts` and `generate-tts.py` scripts do NOT exist. Always use the methods described below (direct file write + inline Python TTS).
 
-### TTS Engine Selection
+## Progress Display
 
-| Flag | Engine | Requirement |
-|------|--------|-------------|
-| (default) | Local Qwen3-TTS | `localhost:9880` running |
-| `--tts gemini` | Gemini 3.1 Flash TTS | `GEMINI_API_KEY` set |
-| `--no-tts` | None | — |
+At the start of each phase, print **one status line** like:
 
-If `--tts gemini` is not specified, check if `localhost:9880` is running. If not, fall back to Gemini TTS automatically (if API key available), otherwise skip TTS.
+```
+Step 3/9 👥 生成教師/學生人格...
+```
+
+When inside a loop (Step 5 scenes, Step 7 TTS), update the line as `Step 5/9 🎨 生成場景 2/5...`. Don't print one line per LLM token.
 
 ---
 
 ## Step 1: Parse Input
 
-Extract from the args:
-- `<topic>` — the course subject (required)
-- `--no-tts` — skip TTS generation
-- `--lang <code>` — language code (`zh-TW`, `en`, `ja`, etc.), default `zh-TW`
-- `--id <id>` — custom classroom ID (only `[a-zA-Z0-9_-]` allowed)
+Print: `Step 1/9 📝 解析輸入...`
 
-If no topic, ask: "請輸入課程主題。"
+Extract from args:
+- `<topic>` — required
+- `--no-tts`, `--no-research`, `--agents generate|default` (default: `default`)
+- `--lang <code>` (default `zh-TW`)
+- `--id <id>` — must match `/^[a-zA-Z0-9_-]+$/`
+- `--tts gemini`, `--voice <name>`
 
-Generate a **classroom ID** from the topic if not provided:
+If no topic: ask "請輸入課程主題。"
+
+Generate classroom ID from topic if not given:
 - Lowercase English, replace spaces/special chars with hyphens
-- Example: "如何學英文" → `how-to-learn-english`, append `-YYYY` for year
-- Must match `/^[a-zA-Z0-9_-]+$/`
+- Example: "如何學英文" → `how-to-learn-english` (+ `-YYYY` if needed for uniqueness)
+
+Announce parsed config:
+```
+主題：<topic>
+ID：<classroom-id>
+語言：<lang>
+TTS：<engine|off>
+研究：<on|off>
+人格：<default|generate>
+```
 
 ---
 
-## Step 2: Generate Course JSON
+## Step 2: Research Phase (optional)
 
-Use your AI brain to generate a complete course JSON. Follow the schema exactly.
+Print: `Step 2/9 🔍 研究主題中...`
 
-### ⚠️ Top-level structure (MUST include `id` and `createdAt` at root)
+- If `--no-research` is set OR the agent has no web-search tool: print `[skip] 略過研究階段` and continue
+- Otherwise:
+  - Query = topic (if topic > 400 chars, first ask LLM to rewrite as concise search query, per [search-query-builder.ts](../../lib/generation/search-query-builder.ts))
+  - Perform one web search (top 10 results)
+  - Compress results into `researchContext` string — for each result: `• <title>: <1-sentence snippet>`
+  - Cap total at ~3000 characters
 
-```json
-{
-  "id": "<classroom-id>",
-  "stage": {
-    "id": "<classroom-id>",
-    "name": "<course title>",
-    "description": "<one-line description>",
-    "language": "<zh-TW|en|ja>",
-    "createdAt": "<ISO timestamp>",
-    "updatedAt": "<ISO timestamp>"
-  },
-  "scenes": [ ...scenes... ],
-  "createdAt": "<ISO timestamp>"
-}
-```
+Store `researchContext` for Step 4.
 
-### Scene types
+---
 
-Each scene must have: `id`, `stageId`, `type`, `title`, `order`, `content`
+## Step 3: Agent Profile Generation (optional)
 
-**Slide scene** (`type: "slide"`):
-```json
-{
-  "id": "scene-<name>",
-  "stageId": "<classroom-id>",
-  "type": "slide",
-  "title": "<scene title>",
-  "order": 0,
-  "content": {
-    "type": "slide",
-    "canvas": {
-      "id": "canvas-<name>",
-      "viewportSize": 1000,
-      "viewportRatio": 0.5625,
-      "theme": {
-        "backgroundColor": "#0f172a",
-        "themeColors": ["#6366f1", "#22d3ee", "#f472b6", "#34d399"],
-        "fontColor": "#ffffff",
-        "fontName": "Microsoft Yahei"
-      },
-      "elements": [ ...elements... ]
-    }
-  },
-  "actions": [
-    {
-      "id": "speech-<scene-id>",
-      "type": "speech",
-      "text": "<narration text for TTS — keep under 60 Chinese characters>"
-    }
-  ]
-}
-```
+Print: `Step 3/9 👥 生成教師/學生人格...`
 
-**Quiz scene** (`type: "quiz"`):
-```json
-{
-  "id": "scene-quiz",
-  "stageId": "<classroom-id>",
-  "type": "quiz",
-  "title": "測驗",
-  "order": 5,
-  "content": {
-    "type": "quiz",
-    "questions": [
-      {
-        "id": "q1",
-        "type": "single",
-        "question": "<question text>",
-        "options": [
-          { "id": "a", "label": "<option A>" },
-          { "id": "b", "label": "<option B>" },
-          { "id": "c", "label": "<option C>" },
-          { "id": "d", "label": "<option D>" }
-        ],
-        "answer": "b",
-        "explanation": "<why this is correct>"
-      }
+- If `--agents default` (default): print `[skip] 使用預設老師/學生` and continue
+- If `--agents generate`:
+  - Prompt the LLM:
+    ```
+    為「<topic>」課程設計 3-5 個角色。用 <lang>。輸出 JSON：
+    [
+      { "name": "...", "role": "teacher", "persona": "2-3 句描述教學風格" },
+      { "name": "...", "role": "student",  "persona": "..." },
+      ...
     ]
-  },
+    規則：
+    - 恰 1 個 teacher
+    - 其餘 2-4 個為 student 或 assistant
+    - 所有 name/persona 用 <lang>
+    ```
+  - Format into `teacherContext` = `老師 <name>：<persona>\n學生 <name>：<persona>\n…` for Step 4
+
+---
+
+## Step 4: Generate Outlines (single LLM call)
+
+Print: `Step 4/9 📋 生成大綱中...`
+
+Prompt the LLM with:
+
+```
+你是專業課程設計師。根據以下輸入產出 5-6 個場景大綱。
+
+需求：<topic>
+語言：<lang>
+
+{如果有 researchContext}
+最新研究參考：
+<researchContext>
+
+{如果有 teacherContext}
+角色設定：
+<teacherContext>
+
+輸出純 JSON 陣列，每個元素：
+{
+  "id": "scene_1",
+  "type": "slide" | "quiz",
+  "title": "<scene 標題>",
+  "description": "1-2 句描述教學目的",
+  "keyPoints": ["3-5 個核心點"],
+  "order": 1
+}
+
+規則：
+- 最後一個 scene 固定 type: "quiz"
+- 其餘為 type: "slide"
+- 建議順序：cover → why → core concepts → deep dive → applications → quiz
+- 所有文字使用 <lang>
+- 禁止在 description 中提到任何老師名字
+```
+
+Parse JSON. On failure retry once. If still fails, abort with clear error.
+
+Store `outlines: Outline[]` for Step 5.
+
+---
+
+## Step 5: Generate Scenes (loop with per-scene retry)
+
+For each `outline` in `outlines`:
+
+1. Print `Step 5/9 🎨 生成場景 <order>/<total>：<title>...`
+2. Prompt LLM to produce a full scene JSON matching the schema in **Scene Schema Reference** below.
+3. Validate the returned JSON:
+   - Top-level: `id`, `stageId`, `type`, `title`, `order`, `content`, `actions` present
+   - Slide: `content.canvas.elements` is an array; every shape has `viewBox`; every text has HTML `content`
+   - Quiz: every option uses `label` (not `text`); `answer` matches an option `id`
+   - `actions[0]` is `{ type: "speech", text: <string ≤ 60 chars>, id: "speech-<scene-id>" }`
+4. **On validation failure**: retry once with a message like "上次輸出缺少 viewBox，請重新產出完整合法 JSON"
+5. **If still fails**: push `{ order, title, reason }` to `skippedScenes`, print `⚠️ 場景 <order> 生成失敗，跳過`, continue to next outline
+
+Collect successful scenes in `scenes: Scene[]`, sorted by `order`.
+
+### Scene Prompt Template
+
+```
+產出一個 OpenMAIC 場景的完整 JSON。主題：<topic>。語言：<lang>。
+
+本場景大綱：
+<JSON.stringify(outline)>
+
+{如果有 teacherContext}
+角色設定：
+<teacherContext>
+
+輸出 JSON（不要 markdown 外框，直接 JSON）：
+{
+  "id": "<outline.id 改成 scene-<slug>>",
+  "stageId": "<classroom-id>",
+  "type": "<outline.type>",
+  "title": "<outline.title>",
+  "order": <outline.order>,
+  "content": { ...按 outline.type 展開... },
   "actions": [
-    { "id": "speech-scene-quiz", "type": "speech", "text": "現在來測驗！請回答題目。" }
+    { "id": "speech-<scene-id>", "type": "speech", "text": "60 字以內的旁白" }
+  ]
+}
+
+遵守以下 Scene Schema 與 PPTist 規則（見下方 Schema Reference）。
+```
+
+### Scene Schema Reference
+
+**Slide content (`type: "slide"`):**
+
+```json
+{
+  "type": "slide",
+  "canvas": {
+    "id": "canvas-<slug>",
+    "viewportSize": 1000,
+    "viewportRatio": 0.5625,
+    "theme": {
+      "backgroundColor": "#0f172a",
+      "themeColors": ["#6366f1", "#22d3ee", "#f472b6", "#34d399"],
+      "fontColor": "#ffffff",
+      "fontName": "Microsoft Yahei"
+    },
+    "elements": [ ... ]
+  }
+}
+```
+
+**Quiz content (`type: "quiz"`):**
+
+```json
+{
+  "type": "quiz",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single",
+      "question": "<question text>",
+      "options": [
+        { "id": "a", "label": "<option A>" },
+        { "id": "b", "label": "<option B>" }
+      ],
+      "answer": "b",
+      "explanation": "<why this is correct>"
+    }
   ]
 }
 ```
 
-> ⚠️ Quiz options MUST use `"label"` field (NOT `"text"`). Using `"text"` will cause options to render blank in the UI.
+> ⚠️ Quiz options MUST use `"label"` (NOT `"text"`). Quiz `actions[0].text` is `"現在來測驗！請回答題目。"`.
 
----
+**PPTist elements — every element has base fields** `type, id, left, top, width, height, rotate`.
 
-## Step 3: PPTist Element Format (CRITICAL)
-
-Every element needs these base fields: `type`, `id`, `left`, `top`, `width`, `height`, `rotate`
-
-### ⚠️ Shape elements — MUST have `viewBox`
-
+**Shape (MUST have `viewBox`):**
 ```json
 {
   "type": "shape",
@@ -172,27 +259,24 @@ Every element needs these base fields: `type`, `id`, `left`, `top`, `width`, `he
 }
 ```
 
-**`viewBox` must equal `[width, height]` of the shape.**
+`viewBox` must equal `[width, height]`. Missing `viewBox` = runtime crash.
 
-Missing `viewBox` = crash: `TypeError: Cannot read properties of undefined (reading '0')`
-
-### ⚠️ Text elements — content MUST be HTML
-
+**Text (content MUST be HTML):**
 ```json
 {
   "type": "text",
   "id": "my-text",
   "left": 50, "top": 100, "width": 800, "height": 80,
   "rotate": 0,
-  "content": "<p><span style=\"font-size: 40px; color: #ffffff; font-weight: bold;\">標題文字</span></p>",
+  "content": "<p><span style=\"font-size: 40px; color: #ffffff; font-weight: bold;\">標題</span></p>",
   "defaultFontName": "Microsoft Yahei",
   "defaultColor": "#ffffff"
 }
 ```
 
-Plain string content (no `<p>` tags) will NOT render correctly.
+Plain string content will NOT render.
 
-### Common shape paths
+**Shape paths:**
 
 | Shape | Path |
 |-------|------|
@@ -200,15 +284,14 @@ Plain string content (no `<p>` tags) will NOT render correctly.
 | Rounded rect (r=10) | `M 10 0 L {w-10} 0 Q {w} 0 {w} 10 L {w} {h-10} Q {w} {h} {w-10} {h} L 10 {h} Q 0 {h} 0 {h-10} L 0 10 Q 0 0 10 0 Z` |
 | Circle | `M {r} 0 A {r} {r} 0 1 1 {r-0.01} 0 Z` |
 
-### Slide layout recommendations
-
-- Canvas: 1000 × 562.5px
-- Heading: font-size 36-44px, top ~30-50px
+**Layout:**
+- Canvas 1000 × 562.5 px
+- Heading font 36–44 px, top ≈ 30–50
 - Divider bar: `left:50, top:95, width:80, height:5`, fill `#6366f1`
-- Cards: width ~200-440px, rounded rect path, fill `#1e293b`
-- Safe text area: left 50–950px, top 30–530px
+- Cards width 200–440 px, rounded rect, fill `#1e293b`
+- Safe text area: left 50–950, top 30–530
 
-### Dark theme color palette
+**Dark theme palette:**
 
 | Usage | Color |
 |-------|-------|
@@ -223,28 +306,44 @@ Plain string content (no `<p>` tags) will NOT render correctly.
 | Secondary text | `#cbd5e1` |
 | Muted text | `#94a3b8` |
 
----
-
-## Step 4: Narration Text Guidelines
-
-Each scene's `speech.text` should be:
-- **Under 60 Chinese characters** to avoid TTS timeout
-- Natural spoken language, not slide bullet points
-- Summarize the slide content briefly
+**Narration (`actions[0].text`):**
+- ≤ 60 中文字 (TTS timeout guard)
+- Natural spoken language, not slide bullets
+- Don't mention any teacher name
 
 ---
 
-## Step 5: Save to OpenMAIC
+## Step 6: Assemble & Save
 
-Write the JSON **directly to the Docker volume** (do NOT use save-classroom.ts — it doesn't exist):
+Print: `Step 6/9 💾 寫入檔案...`
+
+Build the final course JSON:
+
+```json
+{
+  "id": "<classroom-id>",
+  "stage": {
+    "id": "<classroom-id>",
+    "name": "<course title>",
+    "description": "<one-line description>",
+    "language": "<zh-TW|en|ja>",
+    "createdAt": "<ISO timestamp>",
+    "updatedAt": "<ISO timestamp>"
+  },
+  "scenes": [...successful scenes, sorted by order...],
+  "createdAt": "<ISO timestamp>"
+}
+```
+
+Write directly to the Docker volume:
 
 ```python
-import json
+import json, datetime
 
 CLASSROOMS_DIR = "/Users/huli/Desktop/teach-me-cli/data/classrooms"
 classroom_id = "<classroom-id>"
 
-course_data = { ...the full JSON dict... }
+course_data = { ...the assembled dict... }
 
 output_path = f"{CLASSROOMS_DIR}/{classroom_id}.json"
 with open(output_path, "w", encoding="utf-8") as f:
@@ -253,27 +352,23 @@ with open(output_path, "w", encoding="utf-8") as f:
 print(f"Saved to {output_path}")
 ```
 
-Verify it's accessible:
-```bash
-curl -sk https://openmaic.openmaic.orb.local/classroom/<classroom-id> -w "\n%{http_code}" | tail -1
-# Should return 200
-```
-
-URL: `https://openmaic.openmaic.orb.local/classroom/<classroom-id>`
-
 ---
 
-## Step 6: Generate TTS Audio (unless `--no-tts`)
+## Step 7: Generate TTS (unless `--no-tts`)
+
+Print: `Step 7/9 🔊 生成 TTS...`
+
+If `--no-tts`: print `[skip] TTS 已關閉` and continue to Step 8.
+
+Decide engine:
+- Default: check `curl -s http://localhost:9880/health` — if `model_loaded: true`, use **Qwen3**
+- If Qwen3 unavailable and `GEMINI_API_KEY` set: fall back to **Gemini**
+- If `--tts gemini` explicit: use Gemini
+- If neither available: print `[skip] No TTS engine available` and continue
+
+Update status per scene: `Step 7/9 🔊 生成 TTS <n>/<N>...`
 
 ### Option A: Local Qwen3-TTS
-
-First check if server is running:
-```bash
-curl -s http://localhost:9880/health
-# Look for: "model_loaded": true
-```
-
-If running, use this inline Python:
 
 ```python
 import json, urllib.request, os
@@ -329,22 +424,16 @@ with open(json_path, "w", encoding="utf-8") as f:
 print(f"Done: {generated} audio files generated.")
 ```
 
-> ⚠️ Use `timeout=120` (not 60). Some TTS requests take 60–90 seconds. If scenes fail, re-run the script — it skips already-generated scenes via `"audioUrl" not in action` guard.
-
----
+> ⚠️ Use `timeout=120` (not 60). Re-run to retry failed scenes (`"audioUrl" not in action` guards skip-re-do).
 
 ### Option B: Gemini TTS (Gemini 3.1 Flash TTS)
 
-Use when `--tts gemini` is specified, or when local server is not running.
-
-**Requirements:** only `GEMINI_API_KEY` — no SDK install needed (uses REST API directly via `urllib`)
-
-**Inline Python (REST API, no SDK needed):**
+**Requirements:** `GEMINI_API_KEY` only (no SDK needed).
 
 ```python
 import urllib.request, json, wave, base64, os
 
-API_KEY = os.environ["GEMINI_API_KEY"]  # or paste key directly
+API_KEY = os.environ["GEMINI_API_KEY"]
 CLASSROOMS_DIR = "/Users/huli/Desktop/teach-me-cli/data/classrooms"
 classroom_id = "<classroom-id>"
 voice = "Kore"  # see voice list below
@@ -413,7 +502,7 @@ with open(json_path, "w", encoding="utf-8") as f:
 print(f"Done: {generated} audio files generated.")
 ```
 
-> ℹ️ Audio format: PCM 24kHz, 16-bit, mono — must match `save_wav()` params exactly.
+> ℹ️ Audio format: PCM 24 kHz, 16-bit, mono.
 
 **Gemini TTS voice options (30 voices):**
 
@@ -425,28 +514,45 @@ print(f"Done: {generated} audio files generated.")
 | Expressive | Erinome, Algenib, Rasalgethi, Laomedeia, Achernar |
 | Others | Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia, Sadaltager, Sulafat |
 
-**Recommended for zh-TW content:** `Kore`, `Aoede`, `Zephyr`
+**Recommended for zh-TW:** `Kore`, `Aoede`, `Zephyr`.
 
 **Audio style tags** (embed in speech text):
-- `[輕聲地]` / `[whispers]` — whisper style
-- `[興奮地]` / `[excitedly]` — excited tone
-- `[笑著說]` / `[laughs]` — with laughter
-- Example: `"[輕聲地] 這是個小秘密..."`
+- `[輕聲地]` / `[whispers]`
+- `[興奮地]` / `[excitedly]`
+- `[笑著說]` / `[laughs]`
 
 ---
 
-## Step 7: Report Result
+## Step 8: Verify Deployment
 
-After completion, report:
+Print: `Step 8/9 ✔️ 驗證部署...`
+
+```bash
+curl -sk https://openmaic.openmaic.orb.local/classroom/<classroom-id> -w "\n%{http_code}" | tail -1
+# Should return 200
+```
+
+URL: `https://openmaic.openmaic.orb.local/classroom/<classroom-id>`
+
+---
+
+## Step 9: Report Result
+
+Print: `Step 9/9 ✅ 完成！`
+
+Then output:
 
 ```
-✅ 課程已生成！
-
 📚 主題：<topic>
 🆔 ID：<classroom-id>
 🔗 URL：https://openmaic.openmaic.orb.local/classroom/<classroom-id>
-🎵 TTS：<X 個場景已生成音訊 / 已跳過>
+🌐 研究：<已整合 N 筆網路資料 | 已略過>
+👥 人格：<自訂 N 個角色 | 預設>
 📊 場景：<N> 個（<X> 張投影片 + <Y> 題測驗）
+🎵 TTS：<N 個已生成 | 已跳過>
+{ 如果 skippedScenes.length > 0 }
+⚠️ 跳過的場景：<N> 個
+  - 場景 <order>：<title> — <reason>
 ```
 
 ---
@@ -457,25 +563,24 @@ After completion, report:
 |-------|-------|-----|
 | `Cannot read properties of undefined (reading '0')` | Shape missing `viewBox` | Add `"viewBox": [width, height]` to every shape |
 | Text not rendering | `content` is plain string | Wrap in `<p><span style="...">text</span></p>` |
-| Quiz options show blank | Options use `"text"` field | Change to `"label"` field |
-| TTS timeout on first run (Qwen3) | 60s default too short | Use `timeout=120`; re-run script to retry failed scenes |
-| Gemini TTS `google.genai` not found | SDK not installed | `pip install google-genai` |
-| Gemini TTS `GEMINI_API_KEY` error | Key not set | `export GEMINI_API_KEY="..."` before running |
-| Gemini audio sounds wrong speed | Wrong WAV params | Must use `rate=24000, channels=1, sample_width=2` |
+| Quiz options show blank | Options use `"text"` field | Change to `"label"` |
+| TTS timeout (Qwen3) | 60s default too short | `timeout=120`; re-run to retry failed scenes |
+| Gemini TTS `GEMINI_API_KEY` error | Key not set | `export GEMINI_API_KEY="..."` |
+| Gemini audio wrong speed | Wrong WAV params | `rate=24000, channels=1, sample_width=2` |
 | Course not found (404) | JSON not saved correctly | Verify file exists at `classrooms/<id>.json` with top-level `"id"` field |
 | Old audio not heard | IndexedDB stale cache | Run `indexedDB.deleteDatabase('MAIC-Database')` in browser console, reload |
-| `save-classroom.ts` not found | Script doesn't exist | Write JSON directly to Docker volume (see Step 5) |
-| `generate-tts.py` not found | Script doesn't exist | Use inline Python TTS (see Step 6) |
+| Scene generation loops forever | LLM returning markdown-wrapped JSON | Re-prompt with "純 JSON，不要 ``` 外框" |
+| All scenes skipped | LLM ignoring schema | Abort the run, not worth continuing with 0 scenes |
 
 ---
 
 ## Recommended Course Structure (5+1 scenes)
 
-1. **Cover** (scene-cover) — title, subtitle, decorative ∫ or topic symbol
-2. **Why** (scene-why) — motivation, 4 reason cards
-3. **Core Concepts** (scene-concepts) — 2–4 concept cards with formulas/icons
-4. **Deep Dive** (scene-deep) — detailed explanations, formulas, examples
-5. **Applications** (scene-tools) — real-world use cases, 4 application cards
-6. **Quiz** (scene-quiz) — 4 questions (mix formula, numerical, conceptual)
+1. **Cover** — title, subtitle, decorative ∫ or topic symbol
+2. **Why** — motivation, 4 reason cards
+3. **Core Concepts** — 2–4 concept cards with formulas/icons
+4. **Deep Dive** — detailed explanations, formulas, examples
+5. **Applications** — real-world use cases, 4 application cards
+6. **Quiz** — 4 questions (mix formula, numerical, conceptual)
 
-Adjust structure based on topic complexity.
+Adjust structure based on topic complexity. The Step 4 outline generator enforces `type:"quiz"` for the final scene.
