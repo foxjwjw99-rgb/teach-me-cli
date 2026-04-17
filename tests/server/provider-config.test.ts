@@ -4,6 +4,25 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 // This prevents YAML config from leaking host-machine state into tests while keeping
 // the mock scoped to what provider-config actually reads.
 let yamlOverride: string | null = null;
+const ENV_KEYS_TO_CLEAR = [
+  'OPENAI_API_KEY',
+  'OPENAI_BASE_URL',
+  'OPENAI_MODELS',
+  'ANTHROPIC_API_KEY',
+  'GOOGLE_API_KEY',
+  'DEEPSEEK_API_KEY',
+  'QWEN_API_KEY',
+  'KIMI_API_KEY',
+  'MINIMAX_API_KEY',
+  'GLM_API_KEY',
+  'SILICONFLOW_API_KEY',
+  'DOUBAO_API_KEY',
+  'GROK_API_KEY',
+  'OLLAMA_BASE_URL',
+  'FOX_BRAIN_API_KEY',
+  'PDF_MINERU_BASE_URL',
+  'TAVILY_API_KEY',
+];
 
 vi.mock('fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('fs')>();
@@ -29,6 +48,9 @@ describe('provider-config', () => {
     vi.resetModules();
     vi.unstubAllEnvs();
     yamlOverride = null;
+    for (const key of ENV_KEYS_TO_CLEAR) {
+      delete process.env[key];
+    }
   });
 
   describe('resolveApiKey', () => {

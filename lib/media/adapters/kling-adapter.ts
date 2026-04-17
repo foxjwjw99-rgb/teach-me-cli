@@ -128,11 +128,12 @@ export async function testKlingConnectivity(
   config: VideoGenerationConfig,
 ): Promise<{ success: boolean; message: string }> {
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
+  const fetchFn = config.fetch ?? fetch;
   try {
     const { accessKey, secretKey } = parseApiKey(config.apiKey);
     const token = generateJWT(accessKey, secretKey);
     // Use a GET to a non-existent task to validate auth
-    const response = await fetch(`${baseUrl}/v1/videos/text2video/connectivity-test`, {
+    const response = await fetchFn(`${baseUrl}/v1/videos/text2video/connectivity-test`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -155,6 +156,7 @@ export async function testKlingConnectivity(
 
 async function submitTask(
   baseUrl: string,
+  fetchFn: typeof globalThis.fetch,
   token: string,
   model: string,
   options: VideoGenerationOptions,
@@ -169,7 +171,7 @@ async function submitTask(
   if (options.duration) body.duration = String(options.duration);
   if (options.aspectRatio) body.aspect_ratio = options.aspectRatio;
 
-  const response = await fetch(`${baseUrl}/v1/videos/text2video`, {
+  const response = await fetchFn(`${baseUrl}/v1/videos/text2video`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -200,10 +202,11 @@ async function submitTask(
 
 async function pollTask(
   baseUrl: string,
+  fetchFn: typeof globalThis.fetch,
   token: string,
   taskId: string,
 ): Promise<KlingPollResponse['data']> {
-  const response = await fetch(`${baseUrl}/v1/videos/text2video/${taskId}`, {
+  const response = await fetchFn(`${baseUrl}/v1/videos/text2video/${taskId}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -231,16 +234,17 @@ export async function generateWithKling(
 ): Promise<VideoGenerationResult> {
   const model = config.model || DEFAULT_MODEL;
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
+  const fetchFn = config.fetch ?? fetch;
   const { accessKey, secretKey } = parseApiKey(config.apiKey);
   const token = generateJWT(accessKey, secretKey);
 
   // 1. Submit
-  const taskId = await submitTask(baseUrl, token, model, options);
+  const taskId = await submitTask(baseUrl, fetchFn, token, model, options);
 
   // 2. Poll until done
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-    const result = await pollTask(baseUrl, token, taskId);
+    const result = await pollTask(baseUrl, fetchFn, token, taskId);
 
     if (result.task_status === 'succeed') {
       const video = result.task_result?.videos?.[0];

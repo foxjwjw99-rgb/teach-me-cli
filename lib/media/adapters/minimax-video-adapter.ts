@@ -52,6 +52,7 @@ async function submitTask(
   options: VideoGenerationOptions,
 ): Promise<string> {
   const baseUrl = (config.baseUrl || BASE_URL).replace(/\/$/, '');
+  const fetchFn = config.fetch ?? fetch;
 
   const model = config.model || 'MiniMax-Hailuo-2.3';
   const duration = options.duration || 6;
@@ -62,7 +63,7 @@ async function submitTask(
   };
   const resolution = resolutionMap[options.resolution || ''] || '768P';
 
-  const response = await fetch(`${baseUrl}/v1/video_generation`, {
+  const response = await fetchFn(`${baseUrl}/v1/video_generation`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
@@ -103,8 +104,9 @@ async function pollTaskStatus(
 ): Promise<MiniMaxQueryResponse> {
   const baseUrl = (config.baseUrl || BASE_URL).replace(/\/$/, '');
   const url = `${baseUrl}/v1/query/video_generation?task_id=${encodeURIComponent(taskId)}`;
+  const fetchFn = config.fetch ?? fetch;
 
-  const response = await fetch(url, {
+  const response = await fetchFn(url, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
@@ -125,8 +127,9 @@ async function retrieveFileDownloadUrl(
 ): Promise<string> {
   const baseUrl = (config.baseUrl || BASE_URL).replace(/\/$/, '');
   const url = `${baseUrl}/v1/files/retrieve?file_id=${encodeURIComponent(fileId)}`;
+  const fetchFn = config.fetch ?? fetch;
 
-  const response = await fetch(url, {
+  const response = await fetchFn(url, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
@@ -204,8 +207,9 @@ export async function testMiniMaxVideoConnectivity(
 ): Promise<{ success: boolean; message: string }> {
   try {
     const baseUrl = (config.baseUrl || BASE_URL).replace(/\/$/, '');
+    const fetchFn = config.fetch ?? fetch;
     // Submit a minimal task and immediately check if it returns a task_id
-    const response = await fetch(`${baseUrl}/v1/video_generation`, {
+    const response = await fetchFn(`${baseUrl}/v1/video_generation`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${config.apiKey}`,

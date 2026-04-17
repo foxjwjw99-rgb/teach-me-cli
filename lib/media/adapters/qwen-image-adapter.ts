@@ -38,8 +38,9 @@ export async function testQwenImageConnectivity(
   config: ImageGenerationConfig,
 ): Promise<{ success: boolean; message: string }> {
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
+  const fetchFn = config.fetch ?? fetch;
   try {
-    const response = await fetch(
+    const response = await fetchFn(
       `${baseUrl}/api/v1/services/aigc/multimodal-generation/generation`,
       {
         method: 'POST',
@@ -72,13 +73,16 @@ export async function generateWithQwenImage(
   options: ImageGenerationOptions,
 ): Promise<ImageGenerationResult> {
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
+  const fetchFn = config.fetch ?? fetch;
 
-  const response = await fetch(`${baseUrl}/api/v1/services/aigc/multimodal-generation/generation`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
-    },
+  const response = await fetchFn(
+    `${baseUrl}/api/v1/services/aigc/multimodal-generation/generation`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
     body: JSON.stringify({
       model: config.model || DEFAULT_MODEL,
       input: {
@@ -100,7 +104,8 @@ export async function generateWithQwenImage(
         size: resolveDashScopeSize(options),
       },
     }),
-  });
+    },
+  );
 
   if (!response.ok) {
     const text = await response.text();

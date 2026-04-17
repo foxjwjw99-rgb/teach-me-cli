@@ -134,6 +134,7 @@ export interface TTSModelConfig {
   modelId?: string;
   apiKey?: string;
   baseUrl?: string;
+  fetch?: typeof globalThis.fetch;
   voice: string;
   speed?: number;
   format?: string;
@@ -177,6 +178,7 @@ export interface ASRModelConfig {
   modelId?: string;
   apiKey?: string;
   baseUrl?: string;
+  fetch?: typeof globalThis.fetch;
   language?: string;
 }
 

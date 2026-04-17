@@ -131,6 +131,8 @@ export interface ImageGenerationConfig {
   apiKey: string;
   /** Optional override for the provider's base URL */
   baseUrl?: string;
+  /** Optional pinned fetch for client-supplied base URLs */
+  fetch?: typeof globalThis.fetch;
   /** Optional model ID override (uses provider default if omitted) */
   model?: string;
 }
@@ -239,6 +241,8 @@ export interface VideoGenerationConfig {
   apiKey: string;
   /** Optional override for the provider's base URL */
   baseUrl?: string;
+  /** Optional pinned fetch for client-supplied base URLs */
+  fetch?: typeof globalThis.fetch;
   /** Optional model ID override (uses provider default if omitted) */
   model?: string;
 }

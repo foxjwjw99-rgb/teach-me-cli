@@ -4,7 +4,7 @@ import { resolveASRApiKey, resolveASRBaseUrl } from '@/lib/server/provider-confi
 import type { ASRProviderId } from '@/lib/audio/types';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
-import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
+import { createSSRFProtectedUrl, validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 const log = createLogger('Transcription');
 
 export const maxDuration = 60;
@@ -31,11 +31,13 @@ export async function POST(req: NextRequest) {
     resolvedModelId = modelId ?? undefined;
 
     const clientBaseUrl = baseUrl || undefined;
+    let protectedFetch: typeof globalThis.fetch | undefined;
     if (clientBaseUrl && process.env.NODE_ENV === 'production') {
       const ssrfError = await validateUrlForSSRF(clientBaseUrl);
       if (ssrfError) {
         return apiError('INVALID_URL', 403, ssrfError);
       }
+      protectedFetch = (await createSSRFProtectedUrl(clientBaseUrl)).fetch;
     }
 
     const config = {
@@ -48,6 +50,7 @@ export async function POST(req: NextRequest) {
       baseUrl: clientBaseUrl
         ? clientBaseUrl
         : resolveASRBaseUrl(effectiveProviderId, baseUrl || undefined),
+      fetch: protectedFetch,
     };
 
     // Convert audio file to buffer

@@ -1178,6 +1178,7 @@ export function getModel(config: ModelConfig): ModelWithInfo {
     config.providerId,
     config.baseUrl || provider?.defaultBaseUrl || undefined,
   );
+  const baseFetch = config.fetch;
 
   let model: LanguageModel;
 
@@ -1212,8 +1213,10 @@ export function getModel(config: ModelConfig): ModelWithInfo {
               }
             }
           }
-          return globalThis.fetch(url, init);
+          return (baseFetch || globalThis.fetch)(url, init);
         };
+      } else if (baseFetch) {
+        openaiOptions.fetch = baseFetch;
       }
 
       const openai = createOpenAI(openaiOptions);
@@ -1225,6 +1228,7 @@ export function getModel(config: ModelConfig): ModelWithInfo {
       const anthropic = createAnthropic({
         apiKey: effectiveApiKey,
         baseURL: effectiveBaseUrl,
+        ...(baseFetch ? { fetch: baseFetch } : {}),
       });
       model = anthropic.chat(config.modelId);
       break;
@@ -1235,7 +1239,9 @@ export function getModel(config: ModelConfig): ModelWithInfo {
         apiKey: effectiveApiKey,
         baseURL: effectiveBaseUrl,
       };
-      if (config.proxy) {
+      if (baseFetch) {
+        googleOptions.fetch = baseFetch;
+      } else if (config.proxy) {
         // Dynamic require to avoid bundling undici on the client side
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { ProxyAgent, fetch: undiciFetch } = require('undici');

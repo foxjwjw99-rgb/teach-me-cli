@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { lookupMock } = vi.hoisted(() => ({
   lookupMock: vi.fn(),
 }));
+const { undiciFetchMock } = vi.hoisted(() => ({
+  undiciFetchMock: vi.fn(),
+}));
 
 vi.mock('node:dns', () => ({
   promises: {
@@ -10,10 +13,20 @@ vi.mock('node:dns', () => ({
   },
 }));
 
+vi.mock('undici', () => ({
+  Agent: class MockAgent {
+    constructor(_opts?: unknown) {}
+  },
+  buildConnector: () => (_options: unknown, callback: (err: null, socket: object) => void) =>
+    callback(null, {}),
+  fetch: undiciFetchMock,
+}));
+
 describe('validateUrlForSSRF', () => {
   beforeEach(() => {
     vi.resetModules();
     lookupMock.mockReset();
+    undiciFetchMock.mockReset();
   });
 
   it('allows a public hostname when DNS resolves to a public IP', async () => {
@@ -181,5 +194,22 @@ describe('validateUrlForSSRF', () => {
     await expect(validateUrlForSSRF('https://missing.example')).resolves.toBe(
       'Unable to verify hostname safety',
     );
+  });
+
+  it('pins hostname-based fetches and rejects cross-origin reuse', async () => {
+    lookupMock.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
+    undiciFetchMock.mockResolvedValue(new Response('ok'));
+
+    const { createSSRFProtectedUrl } = await import('@/lib/server/ssrf-guard');
+
+    const guarded = await createSSRFProtectedUrl('https://api.openai.com/v1');
+
+    await expect(guarded.fetch('https://api.openai.com/v1/models')).resolves.toBeInstanceOf(Response);
+    expect(undiciFetchMock).toHaveBeenCalledTimes(1);
+
+    await expect(guarded.fetch('https://example.com')).rejects.toThrow(
+      'Cross-origin request blocked for SSRF-protected fetch',
+    );
+    expect(undiciFetchMock).toHaveBeenCalledTimes(1);
   });
 });

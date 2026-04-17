@@ -8,7 +8,7 @@
 import type { NextRequest } from 'next/server';
 import { getModel, parseModelString, type ModelWithInfo } from '@/lib/ai/providers';
 import { resolveApiKey, resolveBaseUrl, resolveProxy } from '@/lib/server/provider-config';
-import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
+import { createSSRFProtectedUrl, validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 
 export interface ResolvedModel extends ModelWithInfo {
   /** Original model string (e.g. "openai/gpt-4o-mini") */
@@ -17,6 +17,8 @@ export interface ResolvedModel extends ModelWithInfo {
   providerId: string;
   /** Effective API key after server-side fallback resolution */
   apiKey: string;
+  /** Pinned fetch for client-supplied base URLs */
+  fetch?: typeof globalThis.fetch;
 }
 
 /**
@@ -37,11 +39,13 @@ export async function resolveModel(params: {
   // Server-configured URLs (e.g. OLLAMA_BASE_URL from env/YAML) flow through
   // resolveBaseUrl() and bypass this check — they're trusted by the operator.
   const clientBaseUrl = params.baseUrl || undefined;
+  let protectedFetch: typeof globalThis.fetch | undefined;
   if (clientBaseUrl && process.env.NODE_ENV === 'production') {
     const ssrfError = await validateUrlForSSRF(clientBaseUrl);
     if (ssrfError) {
       throw new Error(ssrfError);
     }
+    protectedFetch = (await createSSRFProtectedUrl(clientBaseUrl)).fetch;
   }
 
   const apiKey = clientBaseUrl
@@ -54,11 +58,12 @@ export async function resolveModel(params: {
     modelId,
     apiKey,
     baseUrl,
+    fetch: protectedFetch,
     proxy,
     providerType: params.providerType as 'openai' | 'anthropic' | 'google' | undefined,
   });
 
-  return { model, modelInfo, modelString, providerId, apiKey };
+  return { model, modelInfo, modelString, providerId, apiKey, fetch: protectedFetch };
 }
 
 /**
