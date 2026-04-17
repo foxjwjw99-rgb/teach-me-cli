@@ -50,10 +50,11 @@ export async function testSeedreamConnectivity(
   config: ImageGenerationConfig,
 ): Promise<{ success: boolean; message: string }> {
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
+  const fetchFn = config.fetch ?? fetch;
   try {
     // Send a request with empty prompt — auth failure (401/403) means bad key,
     // any other error (400) means key is valid but request is intentionally bad
-    const response = await fetch(`${baseUrl}/api/v3/images/generations`, {
+    const response = await fetchFn(`${baseUrl}/api/v3/images/generations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -83,8 +84,9 @@ export async function generateWithSeedream(
   options: ImageGenerationOptions,
 ): Promise<ImageGenerationResult> {
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
+  const fetchFn = config.fetch ?? fetch;
 
-  const response = await fetch(`${baseUrl}/api/v3/images/generations`, {
+  const response = await fetchFn(`${baseUrl}/api/v3/images/generations`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

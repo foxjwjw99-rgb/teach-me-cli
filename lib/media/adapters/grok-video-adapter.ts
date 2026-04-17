@@ -86,8 +86,9 @@ export async function testGrokVideoConnectivity(
   config: VideoGenerationConfig,
 ): Promise<{ success: boolean; message: string }> {
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
+  const fetchFn = config.fetch ?? fetch;
   try {
-    const response = await fetch(`${baseUrl}/videos/generations`, {
+    const response = await fetchFn(`${baseUrl}/videos/generations`, {
       method: 'POST',
       headers: apiHeaders(config.apiKey),
       body: JSON.stringify({
@@ -114,6 +115,7 @@ export async function testGrokVideoConnectivity(
 
 async function submitVideoGeneration(
   baseUrl: string,
+  fetchFn: typeof globalThis.fetch,
   apiKey: string,
   model: string,
   options: VideoGenerationOptions,
@@ -125,7 +127,7 @@ async function submitVideoGeneration(
 
   if (options.duration) body.duration = options.duration;
 
-  const response = await fetch(`${baseUrl}/videos/generations`, {
+  const response = await fetchFn(`${baseUrl}/videos/generations`, {
     method: 'POST',
     headers: apiHeaders(apiKey),
     body: JSON.stringify(body),
@@ -150,10 +152,11 @@ async function submitVideoGeneration(
 
 async function pollVideoStatus(
   baseUrl: string,
+  fetchFn: typeof globalThis.fetch,
   apiKey: string,
   requestId: string,
 ): Promise<GrokVideoPollResponse> {
-  const response = await fetch(`${baseUrl}/videos/${requestId}`, {
+  const response = await fetchFn(`${baseUrl}/videos/${requestId}`, {
     method: 'GET',
     headers: apiHeaders(apiKey),
   });
@@ -176,14 +179,15 @@ export async function generateWithGrokVideo(
 ): Promise<VideoGenerationResult> {
   const model = config.model || DEFAULT_MODEL;
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
+  const fetchFn = config.fetch ?? fetch;
 
   // 1. Submit
-  const requestId = await submitVideoGeneration(baseUrl, config.apiKey, model, options);
+  const requestId = await submitVideoGeneration(baseUrl, fetchFn, config.apiKey, model, options);
 
   // 2. Poll until done
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     await delay(POLL_INTERVAL_MS);
-    const result = await pollVideoStatus(baseUrl, config.apiKey, requestId);
+    const result = await pollVideoStatus(baseUrl, fetchFn, config.apiKey, requestId);
 
     if (result.status === 'done') {
       if (!result.video?.url) {

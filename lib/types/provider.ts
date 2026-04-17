@@ -100,6 +100,7 @@ export interface ModelConfig {
   modelId: string;
   apiKey: string;
   baseUrl?: string;
+  fetch?: typeof globalThis.fetch;
   proxy?: string; // Optional: HTTP proxy URL for this provider
   providerType?: ProviderType; // Optional: for custom providers on server-side
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isAccessTokenTimestampValid, splitAccessToken } from '@/lib/server/access-code';
 
 /** Convert string to Uint8Array */
 function encode(str: string): Uint8Array {
@@ -14,11 +15,8 @@ function bufToHex(buf: ArrayBuffer): string {
 
 /** Verify an HMAC-signed token using Web Crypto API (Edge-compatible) */
 async function verifyToken(token: string, accessCode: string): Promise<boolean> {
-  const dotIndex = token.indexOf('.');
-  if (dotIndex === -1) return false;
-
-  const timestamp = token.substring(0, dotIndex);
-  const signature = token.substring(dotIndex + 1);
+  const parsed = splitAccessToken(token);
+  if (!parsed || !isAccessTokenTimestampValid(parsed.timestamp)) return false;
 
   const keyData = encode(accessCode);
   const key = await crypto.subtle.importKey(
@@ -29,14 +27,14 @@ async function verifyToken(token: string, accessCode: string): Promise<boolean> 
     ['sign'],
   );
 
-  const data = encode(timestamp);
+  const data = encode(parsed.timestamp);
   const expected = bufToHex(await crypto.subtle.sign('HMAC', key, data.buffer as ArrayBuffer));
 
   // Constant-length comparison (not truly constant-time in JS, but sufficient here)
-  if (signature.length !== expected.length) return false;
+  if (parsed.signature.length !== expected.length) return false;
   let mismatch = 0;
-  for (let i = 0; i < signature.length; i++) {
-    mismatch |= signature.charCodeAt(i) ^ expected.charCodeAt(i);
+  for (let i = 0; i < parsed.signature.length; i++) {
+    mismatch |= parsed.signature.charCodeAt(i) ^ expected.charCodeAt(i);
   }
   return mismatch === 0;
 }

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createLogger } from '@/lib/logger';
-import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
+import { createSSRFProtectedUrl, validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 const log = createLogger('Azure Voices');
 
@@ -25,14 +25,14 @@ export async function POST(req: NextRequest) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'Base URL is required');
     }
 
-    // Validate baseUrl against SSRF
     const ssrfError = await validateUrlForSSRF(baseUrl);
     if (ssrfError) {
       return apiError('INVALID_URL', 403, ssrfError);
     }
+    const guardedBaseUrl = await createSSRFProtectedUrl(baseUrl);
 
     // Call Azure voices list endpoint; disable redirect following to prevent SSRF via redirect
-    const response = await fetch(`${baseUrl}/cognitiveservices/voices/list`, {
+    const response = await guardedBaseUrl.fetch(`${baseUrl}/cognitiveservices/voices/list`, {
       method: 'GET',
       headers: {
         'Ocp-Apim-Subscription-Key': apiKey,

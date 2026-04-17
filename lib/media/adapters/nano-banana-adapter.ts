@@ -54,17 +54,18 @@ export async function testNanoBananaConnectivity(
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
   const model = config.model || DEFAULT_MODEL;
   const url = `${baseUrl}/v1beta/models`;
+  const fetchFn = config.fetch ?? fetch;
 
   // Try ?key= query param first (direct Google API), fall back to x-goog-api-key header (proxy)
   let response: Response | null = null;
   try {
-    response = await fetch(`${url}?key=${config.apiKey}`, { method: 'GET' });
+    response = await fetchFn(`${url}?key=${config.apiKey}`, { method: 'GET' });
   } catch {
     // Direct API unreachable, try header auth
   }
   if (!response || !response.ok) {
     try {
-      response = await fetch(url, {
+      response = await fetchFn(url, {
         method: 'GET',
         headers: { 'x-goog-api-key': config.apiKey },
       });
@@ -100,8 +101,9 @@ export async function generateWithNanoBanana(
 ): Promise<ImageGenerationResult> {
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
   const model = config.model || DEFAULT_MODEL;
+  const fetchFn = config.fetch ?? fetch;
 
-  const response = await fetch(`${baseUrl}/v1beta/models/${model}:generateContent`, {
+  const response = await fetchFn(`${baseUrl}/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

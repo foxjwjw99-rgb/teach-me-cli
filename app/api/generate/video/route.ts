@@ -22,7 +22,7 @@ import { resolveVideoApiKey, resolveVideoBaseUrl } from '@/lib/server/provider-c
 import type { VideoProviderId, VideoGenerationOptions } from '@/lib/media/types';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
-import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
+import { createSSRFProtectedUrl, validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 
 const log = createLogger('VideoGeneration API');
 
@@ -40,12 +40,14 @@ export async function POST(request: NextRequest) {
     const clientApiKey = request.headers.get('x-api-key') || undefined;
     const clientBaseUrl = request.headers.get('x-base-url') || undefined;
     const clientModel = request.headers.get('x-video-model') || undefined;
+    let protectedFetch: typeof globalThis.fetch | undefined;
 
     if (clientBaseUrl && process.env.NODE_ENV === 'production') {
       const ssrfError = await validateUrlForSSRF(clientBaseUrl);
       if (ssrfError) {
         return apiError('INVALID_URL', 403, ssrfError);
       }
+      protectedFetch = (await createSSRFProtectedUrl(clientBaseUrl)).fetch;
     }
 
     const apiKey = clientBaseUrl
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
     );
 
     const result = await generateVideo(
-      { providerId, apiKey, baseUrl, model: clientModel },
+      { providerId, apiKey, baseUrl, fetch: protectedFetch, model: clientModel },
       options,
     );
 

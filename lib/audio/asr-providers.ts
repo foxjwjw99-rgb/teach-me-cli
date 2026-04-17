@@ -200,6 +200,7 @@ async function transcribeOpenAIWhisper(
   const openai = createOpenAI({
     apiKey: config.apiKey!,
     baseURL: config.baseUrl || ASR_PROVIDERS['openai-whisper'].defaultBaseUrl,
+    ...(config.fetch ? { fetch: config.fetch } : {}),
   });
 
   // Convert to Buffer or Uint8Array (which is required by the AI SDK)
@@ -243,6 +244,7 @@ async function transcribeQwenASR(
   audioBuffer: Buffer | Blob,
 ): Promise<ASRTranscriptionResult> {
   const baseUrl = config.baseUrl || ASR_PROVIDERS['qwen-asr'].defaultBaseUrl;
+  const fetchFn = config.fetch ?? fetch;
 
   // Convert audio to base64
   let base64Audio: string;
@@ -282,7 +284,7 @@ async function transcribeQwenASR(
     };
   }
 
-  const response = await fetch(`${baseUrl}/services/aigc/multimodal-generation/generation`, {
+  const response = await fetchFn(`${baseUrl}/services/aigc/multimodal-generation/generation`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.apiKey}`,

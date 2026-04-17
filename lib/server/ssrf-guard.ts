@@ -6,6 +6,21 @@
  */
 import { promises as dns } from 'node:dns';
 import { isIP } from 'node:net';
+import { Agent, buildConnector, fetch as undiciFetch } from 'undici';
+
+type SafeFetch = typeof globalThis.fetch;
+
+interface ParsedSSRFUrl {
+  parsedUrl: URL;
+  hostname: string;
+  pinnedAddress?: string;
+}
+
+export interface SSRFProtectedUrl {
+  url: string;
+  fetch: SafeFetch;
+  pinnedAddress?: string;
+}
 
 function normalizeAddress(value: string): string {
   let normalized = value.trim().toLowerCase();
@@ -162,29 +177,85 @@ export function isPrivateIP(ip: string): boolean {
   return false;
 }
 
-/**
- * Validate a URL against SSRF attacks.
- * Returns null if the URL is safe, or an error message string if blocked.
- */
-export async function validateUrlForSSRF(url: string): Promise<string | null> {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return 'Invalid URL';
+function defaultPort(protocol: string): string {
+  return protocol === 'https:' ? '443' : '80';
+}
+
+function sameOrigin(a: URL, b: URL): boolean {
+  return (
+    a.protocol === b.protocol &&
+    normalizeAddress(a.hostname) === normalizeAddress(b.hostname) &&
+    (a.port || defaultPort(a.protocol)) === (b.port || defaultPort(b.protocol))
+  );
+}
+
+function getRequestUrl(input: RequestInfo | URL, baseUrl: URL): URL {
+  if (input instanceof URL) {
+    return input;
   }
 
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    return 'Only HTTP(S) URLs are allowed';
+  if (typeof input === 'string') {
+    return new URL(input, baseUrl);
+  }
+
+  return new URL(input.url);
+}
+
+function createPinnedDispatcher(hostname: string, pinnedAddress: string): Agent {
+  const connector = buildConnector();
+  return new Agent({
+    connect(options, callback) {
+      connector(
+        {
+          ...options,
+          hostname: pinnedAddress,
+          servername: hostname,
+        },
+        callback,
+      );
+    },
+  });
+}
+
+function createPinnedFetch(baseUrl: URL, hostname: string, pinnedAddress: string): SafeFetch {
+  const dispatcher = createPinnedDispatcher(hostname, pinnedAddress);
+
+  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const requestUrl = getRequestUrl(input, baseUrl);
+
+    if (!sameOrigin(requestUrl, baseUrl)) {
+      throw new Error('Cross-origin request blocked for SSRF-protected fetch');
+    }
+
+    return (await undiciFetch(input, {
+      ...(init as RequestInit),
+      dispatcher,
+    } as RequestInit & { dispatcher: Agent })) as unknown as Response;
+  };
+}
+
+async function parseAndValidateUrl(url: string): Promise<ParsedSSRFUrl> {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    throw new Error('Invalid URL');
+  }
+
+  if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
+    throw new Error('Only HTTP(S) URLs are allowed');
   }
 
   // Self-hosted deployments can set ALLOW_LOCAL_NETWORKS=true to skip private-IP checks
   const allowLocal = process.env.ALLOW_LOCAL_NETWORKS;
   if (allowLocal === 'true' || allowLocal === '1') {
-    return null;
+    return {
+      parsedUrl,
+      hostname: normalizeAddress(parsedUrl.hostname),
+    };
   }
 
-  const hostname = normalizeAddress(parsed.hostname);
+  const hostname = normalizeAddress(parsedUrl.hostname);
   if (
     hostname === 'localhost' ||
     hostname.endsWith('.local') ||
@@ -192,27 +263,60 @@ export async function validateUrlForSSRF(url: string): Promise<string | null> {
     hostname === '::1' ||
     isPrivateIP(hostname)
   ) {
-    return 'Local/private network URLs are not allowed';
+    throw new Error('Local/private network URLs are not allowed');
   }
 
   if (isIP(hostname)) {
-    return null;
+    return { parsedUrl, hostname };
   }
 
   let resolvedAddresses: Array<{ address: string; family: number }>;
   try {
     resolvedAddresses = await dns.lookup(hostname, { all: true, verbatim: true });
   } catch {
-    return 'Unable to verify hostname safety';
+    throw new Error('Unable to verify hostname safety');
   }
 
   if (resolvedAddresses.length === 0) {
-    return 'Unable to verify hostname safety';
+    throw new Error('Unable to verify hostname safety');
   }
 
   if (resolvedAddresses.some(({ address }) => isPrivateIP(address))) {
-    return 'Local/private network URLs are not allowed';
+    throw new Error('Local/private network URLs are not allowed');
   }
 
-  return null;
+  return {
+    parsedUrl,
+    hostname,
+    pinnedAddress: resolvedAddresses[0].address,
+  };
+}
+
+/**
+ * Validate a URL and return a fetch function that pins DNS resolution for hostname-based URLs.
+ */
+export async function createSSRFProtectedUrl(url: string): Promise<SSRFProtectedUrl> {
+  const { parsedUrl, hostname, pinnedAddress } = await parseAndValidateUrl(url);
+
+  return {
+    url: parsedUrl.toString(),
+    fetch: pinnedAddress ? createPinnedFetch(parsedUrl, hostname, pinnedAddress) : globalThis.fetch,
+    pinnedAddress,
+  };
+}
+
+/**
+ * Validate a URL against SSRF attacks.
+ * Returns null if the URL is safe, or an error message string if blocked.
+ */
+export async function validateUrlForSSRF(url: string): Promise<string | null> {
+  try {
+    await parseAndValidateUrl(url);
+    return null;
+  } catch (error) {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return 'Unable to verify hostname safety';
+  }
 }

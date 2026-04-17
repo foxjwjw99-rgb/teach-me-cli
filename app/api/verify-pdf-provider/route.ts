@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { resolvePDFApiKey, resolvePDFBaseUrl } from '@/lib/server/provider-config';
-import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
+import { createSSRFProtectedUrl, validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 
 const log = createLogger('Verify PDF Provider');
 
@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     providerId = body.providerId;
     const { apiKey, baseUrl } = body;
+    let protectedFetch: typeof globalThis.fetch | undefined;
 
     if (!providerId) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'Provider ID is required');
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
       if (ssrfError) {
         return apiError('INVALID_URL', 403, ssrfError);
       }
+      protectedFetch = (await createSSRFProtectedUrl(clientBaseUrl)).fetch;
     }
 
     const resolvedBaseUrl = clientBaseUrl ? clientBaseUrl : resolvePDFBaseUrl(providerId, baseUrl);
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
       headers['Authorization'] = `Bearer ${resolvedApiKey}`;
     }
 
-    const response = await fetch(resolvedBaseUrl, {
+    const response = await (protectedFetch || globalThis.fetch)(resolvedBaseUrl, {
       headers,
       signal: AbortSignal.timeout(10000),
       redirect: 'manual',
